@@ -24,7 +24,7 @@ const sendVerificationEmail = async (user) => {
 // @route  POST /api/auth/register
 // @access public — open registration for all students.
 const register = asyncHandler(async (req, res, next) => {
-  const { name, email, password, college, qualification, department, year, isTest } = req.body;
+  const { name, email, password, college, qualification, department, year, bio, availability, isTest } = req.body;
 
   if (!college || !qualification || !department || !year) {
     throw new AppError('Please complete your profile: school/college, qualification, year and department are required.', 400);
@@ -45,6 +45,8 @@ const register = asyncHandler(async (req, res, next) => {
     qualification: String(qualification).trim(),
     department: String(department).trim(),
     year,
+    bio: bio || '',
+    availability: availability || 'anytime',
     isVerified: config.demoMode,
     isTest: testAccount,
     trustScore: 15,
