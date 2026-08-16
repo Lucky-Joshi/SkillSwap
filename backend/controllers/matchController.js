@@ -106,6 +106,8 @@ const acceptMatch = asyncHandler(async (req, res, next) => {
   });
   await evaluateBadges(req.user._id);
   await evaluateBadges(otherId);
+  queueTrustRefresh(req.user._id);
+  queueTrustRefresh(otherId);
 
   res.json({ success: true, match: await matchLabel(match, req.user._id) });
 });

@@ -6,6 +6,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { publicUser } = require('../services/userService');
 const { evaluateBadges } = require('../services/badgeService');
 const { queueTrustRefresh } = require('../services/trustService');
+const { deleteUser } = require('../services/cleanupService');
 const config = require('../config/env');
 
 // @route  GET /api/users/profile
@@ -187,6 +188,19 @@ const uploadResume = asyncHandler(async (req, res, next) => {
   });
 });
 
+// @route  DELETE /api/users/me
+// @access private — lets a user permanently delete their own account.
+// Temporary test accounts can always self-delete; other accounts can too,
+// but demo and admin accounts are protected.
+const deleteMyAccount = asyncHandler(async (req, res, next) => {
+  try {
+    await deleteUser(req.user._id);
+  } catch (err) {
+    return next(err);
+  }
+  res.json({ success: true, message: 'Your account and all associated data were deleted.' });
+});
+
 const localResumeScan = async (filePath) => {
   const fs = require('fs');
   const path = require('path');
@@ -219,4 +233,5 @@ module.exports = {
   updateSkill,
   removeSkill,
   uploadResume,
+  deleteMyAccount,
 };
