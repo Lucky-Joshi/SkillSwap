@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: skillswap-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ./backend
+    container_name: skillswap-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      MONGO_URI: mongodb://mongodb:27017/skillswap
+      JWT_SECRET: change-me-in-production
+      JWT_EXPIRES_IN: 7d
+      AI_SERVICE_URL: http://ai-service:8000
+      CLIENT_URL: http://localhost:5173
+    depends_on:
+      - mongodb
+      - ai-service
+
+  ai-service:
+    build: ./ai-service
+    container_name: skillswap-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+
+volumes:
+  mongo_data:
