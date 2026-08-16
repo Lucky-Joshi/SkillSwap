@@ -17,3 +17,4 @@ export const uploadResume = (file) => {
 export const addSkill = (payload) => unwrap(api.post('/users/skills', payload));
 export const updateUserSkill = (id, payload) => unwrap(api.put(`/users/skills/${id}`, payload));
 export const removeUserSkill = (id) => unwrap(api.delete(`/users/skills/${id}`));
+export const deleteMyAccount = () => unwrap(api.delete('/users/me'));
