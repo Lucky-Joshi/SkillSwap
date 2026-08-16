@@ -11,10 +11,13 @@ const { protect } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 
 const router = express.Router();
-router.use(protect);
 
 router.get('/', getSkills);
 router.get('/categories', getCategories);
+
+// Catalog reads are public (used by the signup flow before login).
+// Writes require authentication.
+router.use(protect);
 router.post(
   '/',
   [body('name').trim().notEmpty().isLength({ max: 60 }), body('category').optional(), body('difficulty').optional()],

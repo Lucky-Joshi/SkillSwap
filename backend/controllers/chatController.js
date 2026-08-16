@@ -57,16 +57,16 @@ const getMessages = asyncHandler(async (req, res, next) => {
     ],
   };
 
-  const [messages, total] = await Promise.all([
-    Message.find(filter).sort({ createdAt: 1 }).skip(skip).limit(limit),
-    Message.countDocuments(filter),
-  ]);
-
-  // mark inbound as read
+  // mark inbound as read (before querying so responses are accurate)
   await Message.updateMany(
     { sender: otherId, receiver: req.user._id, read: false },
     { read: true, readAt: new Date() }
   );
+
+  const [messages, total] = await Promise.all([
+    Message.find(filter).sort({ createdAt: 1 }).skip(skip).limit(limit),
+    Message.countDocuments(filter),
+  ]);
 
   res.json({ success: true, ...paginateResults(messages, total, page, limit) });
 });

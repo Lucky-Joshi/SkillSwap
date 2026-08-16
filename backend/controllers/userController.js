@@ -7,6 +7,7 @@ const { publicUser } = require('../services/userService');
 const { evaluateBadges } = require('../services/badgeService');
 const { queueTrustRefresh } = require('../services/trustService');
 const { deleteUser } = require('../services/cleanupService');
+const { paginate } = require('../utils/paginate');
 const config = require('../config/env');
 
 // @route  GET /api/users/profile
@@ -49,10 +50,11 @@ const getUser = asyncHandler(async (req, res, next) => {
   res.json({ success: true, user: profile });
 });
 
-// @route  GET /api/users?search=&department=&year=&availability=&role=
+// @route  GET /api/users?search=&skill=&department=&year=&availability=&page=&limit=
 // @access private
 const searchUsers = asyncHandler(async (req, res) => {
-  const { search, department, year, availability } = req.query;
+  const { search, skill, department, year, availability } = req.query;
+  const { page, limit, skip } = paginate(req);
   const filter = { _id: { $ne: req.user._id } };
 
   if (search) {
@@ -65,10 +67,26 @@ const searchUsers = asyncHandler(async (req, res) => {
   if (year) filter.year = year;
   if (availability) filter.availability = availability;
 
-  const users = await User.find(filter).limit(100);
+  if (skill && skill.trim()) {
+    const skillDoc = await Skill.findOne({
+      $or: [{ name: { $regex: `^${skill.trim()}$`, $options: 'i' } }, { aliases: { $regex: `^${skill.trim()}$`, $options: 'i' } }],
+    });
+    if (skillDoc) {
+      const skillUsers = await UserSkill.find({ skillId: skillDoc._id }).distinct('userId');
+      filter._id = { $ne: req.user._id, $in: skillUsers };
+    } else {
+      return res.json({ success: true, users: [], meta: { total: 0, page, limit, totalPages: 1, hasMore: false } });
+    }
+  }
+
+  const [users, total] = await Promise.all([
+    User.find(filter).sort({ isTest: 1, points: -1, rating: -1 }).skip(skip).limit(limit),
+    User.countDocuments(filter),
+  ]);
+
   const profiles = [];
   for (const u of users) profiles.push(await publicUser(u));
-  res.json({ success: true, users: profiles });
+  res.json({ success: true, users: profiles, meta: { total, page, limit, totalPages: Math.max(Math.ceil(total / limit), 1), hasMore: page * limit < total } });
 });
 
 // @route  PUT /api/users/avatar
