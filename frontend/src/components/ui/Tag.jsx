@@ -1,3 +1,4 @@
+import React from 'react';
 import { cx } from '../../utils/helpers';
 
 const TONES = {
@@ -9,7 +10,7 @@ const TONES = {
   purple: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30',
 };
 
-export default function Tag({ children, tone = 'brand', className, icon }) {
+function Tag({ children, tone = 'brand', className, icon }) {
   return (
     <span className={cx('chip border', TONES[tone], className)}>
       {icon && <span>{icon}</span>}
@@ -17,6 +18,8 @@ export default function Tag({ children, tone = 'brand', className, icon }) {
     </span>
   );
 }
+
+export default React.memo(Tag);
 
 export function SkillChip({ name, icon, tone }) {
   return <Tag tone={tone || 'brand'}>{icon && <span>{icon}</span>}{name}</Tag>;

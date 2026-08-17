@@ -22,11 +22,15 @@ export default function Button({
     md: 'px-5 py-2.5 text-sm',
     lg: 'px-7 py-3.5 text-base',
   };
+  const isIconOnly = !children || (React.Children.count(children) === 0);
   return (
     <motion.button
+      type="button"
       whileTap={{ scale: 0.97 }}
-      className={cx(VARIANTS[variant], sizes[size], className)}
+      className={cx(VARIANTS[variant], sizes[size], disabled && 'opacity-50 cursor-not-allowed', className)}
       disabled={disabled || loading}
+      aria-disabled={disabled || loading}
+      aria-busy={loading}
       {...props}
     >
       {loading && (

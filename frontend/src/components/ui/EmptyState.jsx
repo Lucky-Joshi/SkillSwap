@@ -1,4 +1,6 @@
-export default function EmptyState({ icon = '🔍', title = 'Nothing here yet', description, action }) {
+import React from 'react';
+
+function EmptyState({ icon = '🔍', title = 'Nothing here yet', description, action }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
       <div className="text-5xl">{icon}</div>
@@ -8,3 +10,5 @@ export default function EmptyState({ icon = '🔍', title = 'Nothing here yet', 
     </div>
   );
 }
+
+export default React.memo(EmptyState);
