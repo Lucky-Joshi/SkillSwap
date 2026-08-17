@@ -23,25 +23,69 @@ real time, schedule sessions, and earn badges & certificates.
 ## System Architecture
 
 ```
-                       React + Vite Frontend
-                               │
-                     Axios / Socket.IO
-                               │
-                     Node + Express Backend
-                               │
-        ┌───────────────┬───────────────┬──────────────┐
-        │               │               │
-     MongoDB       Authentication    Notification
-        │
-        │
-   Recommendation API (HTTP)
-        │
-     FastAPI AI Service
-        │
- Skill Matching Engine
- Resume Skill Extraction
- Roadmap Generator
- Semantic Recommendation
+                        ┌─────────────────────────────────┐
+                        │        React Frontend            │
+                        │    (Vite · Tailwind · Framer)    │
+                        │                                  │
+                        │  Pages  ─  Components  ─  Hooks  │
+                        │         Socket.IO Client         │
+                        └────────────┬────────────────────┘
+                                     │
+                             HTTP + WebSocket
+                                     │
+┌────────────────────────────────────┼──────────────────────────────────────┐
+│                        Node + Express Backend                             │
+│                                                                           │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────┐  ┌───────────────────────┐ │
+│  │  Auth     │  │  Upload  │  │  Validation  │  │  Error Handler        │ │
+│  │  (JWT)    │  │ (Multer) │  │ (Validator)  │  │  (AppError + async)   │ │
+│  └──────────┘  └──────────┘  └──────────────┘  └───────────────────────┘ │
+│                                                                           │
+│  Controllers                                                              │
+│  ┌───────────┐ ┌─────────────┐ ┌──────────┐ ┌────────────┐ ┌───────────┐ │
+│  │ match     │ │ session     │ │ chat     │ │ dashboard  │ │ user      │ │
+│  │(connect)  │ │(schedule)   │ │ (msg)    │ │  (stats)   │ │(profile)  │ │
+│  └───────────┘ └─────────────┘ └──────────┘ └────────────┘ └───────────┘ │
+│                                                                           │
+│  Models                                                                   │
+│  ┌───────────┐ ┌─────────────┐ ┌──────────┐ ┌───────────┐ ┌───────────┐  │
+│  │ User      │ │ Connection  │ │ Session  │ │ Message   │ │ Review    │  │
+│  │ Skill     │ │ (peer +     │ │          │ │           │ │ Badge     │  │
+│  │ UserSkill │ │  mentor)    │ │          │ │           │ │ Certificate│ │
+│  └───────────┘ └─────────────┘ └──────────┘ └───────────┘ └───────────┘  │
+│                                                                           │
+│  Services                                                                 │
+│  ┌───────────────┐ ┌────────────┐ ┌───────────┐ ┌──────────────────────┐ │
+│  │ mentorship    │ │ session    │ │ badge     │ │ trust                │ │
+│  │ (authz gate)  │ │(lifecycle) │ │(auto-grant│ │ (score)              │ │
+│  └───────────────┘ └────────────┘ └───────────┘ └──────────────────────┘ │
+│                                                                           │
+│  ┌──────────────┐ ┌─────────────┐ ┌──────────────────────────────────┐   │
+│  │ Socket.IO    │ │ notification│ │ recommendation                   │   │
+│  │ (realtime)   │ │ (in-app)    │ │ (compatibility scoring)          │   │
+│  └──────────────┘ └─────────────┘ └──────────────────────────────────┘   │
+└───────────────────────────────────┬───────────────────────────────────────┘
+                                    │
+                               ┌────┴────┐
+                               │ MongoDB │
+                               │    7    │
+                               └─────────┘
+
+                        ┌──────────────────────────┐
+                        │    FastAPI AI Service     │
+                        │        (port 8000)        │
+                        │                           │
+                        │  /recommendations  (rank) │
+                        │  /roadmap      (learn path│
+                        │  /skills/graph   (graph)  │
+                        │  /skills/related (suggest)│
+                        │  /skills/similarity (0–1) │
+                        │  /next-steps   (post sess)│
+                        │  /resume/parse  (skills)  │
+                        │                           │
+                        │  TF-IDF · SBERT · spaCy   │
+                        │  NetworkX skill graph      │
+                        └──────────────────────────┘
 ```
 
 Full architecture, schema, API and deployment docs live in [`docs/`](docs/):
