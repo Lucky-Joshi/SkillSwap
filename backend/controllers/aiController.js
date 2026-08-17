@@ -37,4 +37,19 @@ const getRelatedSkills = asyncHandler(async (req, res) => {
   res.json({ success: true, data: result });
 });
 
-module.exports = { getRoadmap, getSkillGraph, getRelatedSkills };
+// @route  POST /api/ai/next-steps { completedTopic, goal? }
+// @access private — recommend the next learning topic(s) after a session.
+const getNextSteps = asyncHandler(async (req, res) => {
+  const { completedTopic, goal = '' } = req.body;
+  const fallback = () => require('../services/nextStepsService').suggestNext(completedTopic, goal);
+  const result = await aiClient.tryAi('/roadmap/next', { completed_topic: completedTopic, goal }, fallback);
+  res.json({
+    success: true,
+    completedTopic,
+    next: result.next || result.topics || [],
+    progress: result.progress ?? null,
+    aiService: await aiClient.isUp().catch(() => false),
+  });
+});
+
+module.exports = { getRoadmap, getSkillGraph, getRelatedSkills, getNextSteps };

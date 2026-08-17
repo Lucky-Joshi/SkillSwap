@@ -3,6 +3,7 @@ const app = require('./app');
 const config = require('./config/env');
 const connectDB = require('./config/db');
 const { initSocket } = require('./socket');
+const { startReminderScheduler } = require('./services/reminderService');
 
 const start = async () => {
   await connectDB();
@@ -14,6 +15,9 @@ const start = async () => {
     console.log(`[skillswap] API running on http://localhost:${config.port}`);
     console.log(`[skillswap] AI service: ${config.aiServiceUrl}`);
   });
+
+  startReminderScheduler();
+  console.log('[skillswap] session reminder scheduler started');
 
   const shutdown = async (signal) => {
     console.log(`\n[skillswap] ${signal} received. Shutting down gracefully...`);

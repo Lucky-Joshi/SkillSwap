@@ -63,6 +63,13 @@ const userSchema = new mongoose.Schema(
     isTest: { type: Boolean, default: false },
     isDemo: { type: Boolean, default: false },
     trustScore: { type: Number, min: 0, max: 100, default: 0 },
+    sessionsCompleted: { type: Number, default: 0 },
+    hoursLearned: { type: Number, default: 0 },
+    hoursTaught: { type: Number, default: 0 },
+    learnedSkills: [{ type: String }],
+    learningStreak: { type: Number, default: 0 },
+    teachingStreak: { type: Number, default: 0 },
+    lastSessionDate: { type: Date },
   },
   { timestamps: true }
 );

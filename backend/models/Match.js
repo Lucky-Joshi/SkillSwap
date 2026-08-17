@@ -13,16 +13,19 @@ const matchSchema = new mongoose.Schema(
     ],
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'rejected', 'completed'],
+      enum: ['pending', 'accepted', 'rejected', 'cancelled'],
       default: 'pending',
     },
     requestedBy: { type: String, enum: ['mentor', 'learner'], required: true },
     createdAt: { type: Date, default: Date.now },
     respondedAt: { type: Date },
+    acceptedAt: { type: Date },
+    active: { type: Boolean, default: false, index: true },
   },
   { timestamps: true }
 );
 
 matchSchema.index({ mentorId: 1, learnerId: 1 }, { unique: true });
+matchSchema.index({ active: 1, status: 1 });
 
 module.exports = mongoose.model('Match', matchSchema);

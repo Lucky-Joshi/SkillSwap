@@ -380,6 +380,8 @@ const resetDemoAccount = async () => {
       learnerId: learner._id,
       compatibilityScore: 88,
       status: 'accepted',
+      active: true,
+      acceptedAt: new Date(),
       requestedBy: 'learner',
       respondedAt: new Date(),
     });
@@ -389,6 +391,7 @@ const resetDemoAccount = async () => {
       await Message.create({
         sender,
         receiver,
+        conversationId: [String(sender), String(receiver)].sort().join('_'),
         message: pick([
           'Hey! Great to connect — what should we cover first?',
           'I can help you get started with the basics.',
@@ -405,9 +408,14 @@ const resetDemoAccount = async () => {
         learnerId: learner._id,
         matchId: match._id,
         topic: 'Marketing 101',
+        description: 'Introduction to marketing fundamentals.',
         date: new Date(Date.now() + 2 * 24 * 3600 * 1000),
+        startTime: '17:00',
         duration: 60,
-        status: 'scheduled',
+        status: 'confirmed',
+        meetingMode: 'online',
+        meetingType: 'googleMeet',
+        meetingLink: 'https://meet.google.com/skillswap-demo',
         link: 'https://meet.google.com/skillswap-demo',
       });
       await Review.create({

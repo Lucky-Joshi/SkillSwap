@@ -141,6 +141,8 @@ const main = async () => {
       learnerId: learner._id,
       compatibilityScore: pick([82, 86, 90, 84, 88]),
       status: 'accepted',
+      active: true,
+      acceptedAt: new Date(),
       requestedBy: 'learner',
       respondedAt: new Date(),
     });
@@ -148,6 +150,7 @@ const main = async () => {
       await Message.create({
         sender: i % 2 === 0 ? mentor._id : learner._id,
         receiver: i % 2 === 0 ? learner._id : mentor._id,
+        conversationId: [String(mentor._id), String(learner._id)].sort().join('_'),
         message: pick([
           'Hey! Great to connect — when are you free this week?',
           'I can share some resources to get you started.',

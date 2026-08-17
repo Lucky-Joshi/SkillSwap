@@ -47,6 +47,22 @@ const getUser = asyncHandler(async (req, res, next) => {
   const user = await User.findById(req.params.id);
   if (!user) throw new AppError('User not found.', 404);
   const profile = await publicUser(user);
+
+  // Relationship context for the viewer (drives profile actions).
+  if (String(req.user._id) !== String(user._id)) {
+    const { findRelationship } = require('../services/mentorshipService');
+    const rel = await findRelationship(req.user._id, user._id);
+    if (rel) {
+      profile.relationship = {
+        id: rel._id,
+        status: rel.status,
+        active: rel.active,
+        role: String(rel.mentorId) === String(req.user._id) ? 'mentor' : 'learner',
+        acceptedAt: rel.acceptedAt,
+      };
+    }
+  }
+
   res.json({ success: true, user: profile });
 });
 
