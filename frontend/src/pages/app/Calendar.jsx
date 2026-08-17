@@ -2,16 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { FiChevronLeft, FiChevronRight, FiClock, FiVideo, FiMapPin, FiCalendar } from 'react-icons/fi';
-import Card from '../components/ui/Card';
-import Tag from '../components/ui/Tag';
-import Modal from '../components/ui/Modal';
-import Button from '../components/ui/Button';
-import Avatar from '../components/ui/Avatar';
-import EmptyState from '../components/ui/EmptyState';
-import { CardSkeleton } from '../components/ui/Skeleton';
-import { getSessionCalendar } from '../services/sessions';
-import { useDocumentTitle } from '../hooks';
-import { cx } from '../utils/helpers';
+import Card from '../../components/ui/Card';
+import Tag from '../../components/ui/Tag';
+import Modal from '../../components/ui/Modal';
+import Button from '../../components/ui/Button';
+import Avatar from '../../components/ui/Avatar';
+import EmptyState from '../../components/ui/EmptyState';
+import { CardSkeleton } from '../../components/ui/Skeleton';
+import { getSessionCalendar } from '../../services/sessions';
+import { useDocumentTitle } from '../../hooks';
+import { cx } from '../../utils/helpers';
 
 const STATUS_TONE = {
   pending: 'amber',
@@ -165,8 +165,8 @@ export default function Calendar() {
             <Card>
               <h2 className="mb-3 font-display font-bold">Quick links</h2>
               <div className="space-y-2">
-                <Link to="/sessions" className="btn-secondary w-full">📅 Session dashboard</Link>
-                <Link to="/chat" className="btn-secondary w-full">💬 Open chat</Link>
+                <Link to="/app/sessions" className="btn-secondary w-full">📅 Session dashboard</Link>
+                <Link to="/app/chat" className="btn-secondary w-full">💬 Open chat</Link>
               </div>
             </Card>
           </div>
@@ -202,7 +202,7 @@ export default function Calendar() {
             </div>
             {selected.description && <p className="text-sm text-slate-500 dark:text-slate-400">{selected.description}</p>}
             <div className="flex justify-end">
-              <Link to="/sessions" className="btn-secondary">Open session dashboard</Link>
+              <Link to="/app/sessions" className="btn-secondary">Open session dashboard</Link>
             </div>
           </div>
         )}

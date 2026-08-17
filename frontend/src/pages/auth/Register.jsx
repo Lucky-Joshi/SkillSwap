@@ -4,19 +4,19 @@ import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { FiArrowLeft, FiArrowRight, FiCheck } from 'react-icons/fi';
-import AuthLayout from '../layouts/AuthLayout';
-import Input from '../components/ui/Input';
-import TextArea from '../components/ui/TextArea';
-import Select from '../components/ui/Select';
-import Button from '../components/ui/Button';
-import SkillPicker from '../components/feature/SkillPicker';
-import ProgressBar from '../components/ui/ProgressBar';
-import { useAuth } from '../context/AuthContext';
-import { useDocumentTitle } from '../hooks';
-import { getSkills } from '../services/skills';
-import { addSkill } from '../services/users';
-import { getInstitutions } from '../services/institutions';
-import { YEAR_OPTIONS, AVAILABILITY_OPTIONS, QUALIFICATION_OPTIONS, DEPARTMENT_OPTIONS } from '../utils/constants';
+import AuthLayout from '../../layouts/AuthLayout';
+import Input from '../../components/ui/Input';
+import TextArea from '../../components/ui/TextArea';
+import Select from '../../components/ui/Select';
+import Button from '../../components/ui/Button';
+import SkillPicker from '../../components/feature/SkillPicker';
+import ProgressBar from '../../components/ui/ProgressBar';
+import { useAuth } from '../../context/AuthContext';
+import { useDocumentTitle } from '../../hooks';
+import { getSkills } from '../../services/skills';
+import { addSkill } from '../../services/users';
+import { getInstitutions } from '../../services/institutions';
+import { YEAR_OPTIONS, AVAILABILITY_OPTIONS, QUALIFICATION_OPTIONS, DEPARTMENT_OPTIONS } from '../../utils/constants';
 
 const STEPS = ['Account', 'Profile', 'Skills'];
 
@@ -81,7 +81,7 @@ export default function Register() {
       } else {
         toast.success('Account created! Your AI matches are ready.');
       }
-      navigate('/recommendations');
+      navigate('/app/recommendations');
     } catch (err) {
       toast.error(err.message);
     } finally {

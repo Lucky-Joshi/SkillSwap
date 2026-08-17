@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
-import Spinner from '../components/ui/Spinner';
-import EmptyState from '../components/ui/EmptyState';
-import { useAuth } from '../context/AuthContext';
-import { useDocumentTitle } from '../hooks';
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import Spinner from '../../components/ui/Spinner';
+import EmptyState from '../../components/ui/EmptyState';
+import { useAuth } from '../../context/AuthContext';
+import { useDocumentTitle } from '../../hooks';
 import {
   getAdminStats,
   listAdminUsers,
@@ -14,8 +14,8 @@ import {
   deleteUser,
   resetDemoAccount,
   purgeData,
-} from '../services/admin';
-import { formatDate } from '../utils/helpers';
+} from '../../services/admin';
+import { formatDate } from '../../utils/helpers';
 
 export default function Admin() {
   useDocumentTitle('Admin');

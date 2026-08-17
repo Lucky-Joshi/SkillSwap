@@ -2,13 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FiAward, FiStar } from 'react-icons/fi';
-import Avatar from '../components/ui/Avatar';
-import Card from '../components/ui/Card';
-import Pagination from '../components/ui/Pagination';
-import EmptyState from '../components/ui/EmptyState';
-import { CardSkeleton } from '../components/ui/Skeleton';
-import { getLeaderboard } from '../services/leaderboard';
-import { useDocumentTitle } from '../hooks';
+import Avatar from '../../components/ui/Avatar';
+import Card from '../../components/ui/Card';
+import Pagination from '../../components/ui/Pagination';
+import EmptyState from '../../components/ui/EmptyState';
+import { CardSkeleton } from '../../components/ui/Skeleton';
+import { getLeaderboard } from '../../services/leaderboard';
+import { useDocumentTitle } from '../../hooks';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -66,7 +66,7 @@ export default function Leaderboard() {
                     {isTop3 ? MEDALS[row.rank - 1] : row.rank}
                   </div>
                   <Avatar src={row.avatar} name={row.name} size="sm" />
-                  <Link to={`/profile/${row.id}`} className="min-w-0 flex-1">
+                  <Link to={`/app/profile/${row.id}`} className="min-w-0 flex-1">
                     <div className="truncate text-sm font-semibold hover:text-brand-600 dark:hover:text-brand-300">{row.name}</div>
                     <div className="text-xs text-slate-400">{row.department || row.college || 'Student'}</div>
                   </Link>

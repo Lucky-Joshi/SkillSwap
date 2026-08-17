@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import AuthLayout from '../layouts/AuthLayout';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
-import { forgotPassword } from '../services/auth';
-import { useDocumentTitle } from '../hooks';
+import AuthLayout from '../../layouts/AuthLayout';
+import Input from '../../components/ui/Input';
+import Button from '../../components/ui/Button';
+import { forgotPassword } from '../../services/auth';
+import { useDocumentTitle } from '../../hooks';
 
 export default function ForgotPassword() {
   useDocumentTitle('Reset password');

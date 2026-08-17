@@ -1,0 +1,36 @@
+export const ROUTES = {
+  HOME: '/',
+  FEATURES: '/features',
+  HOW_IT_WORKS: '/how-it-works',
+  AI: '/ai',
+  ABOUT: '/about',
+  FAQ: '/faq',
+  CONTACT: '/contact',
+  LOGIN: '/login',
+  REGISTER: '/register',
+  FORGOT_PASSWORD: '/forgot-password',
+  RESET_PASSWORD: '/reset-password',
+  VERIFY_EMAIL: '/verify-email',
+
+  APP: '/app',
+  DASHBOARD: '/app/dashboard',
+  DISCOVER: '/app/discover',
+  RECOMMENDATIONS: '/app/recommendations',
+  CONNECTIONS: '/app/connections',
+  MENTORS: '/app/mentors',
+  LEARNERS: '/app/learners',
+  PEERS: '/app/peers',
+  SESSIONS: '/app/sessions',
+  CALENDAR: '/app/calendar',
+  CHAT: '/app/chat',
+  NOTIFICATIONS: '/app/notifications',
+  LEADERBOARD: '/app/leaderboard',
+  ROADMAP: '/app/roadmap',
+  PROFILE: '/app/profile',
+  SETTINGS: '/app/settings',
+  CERTIFICATES: '/app/certificates',
+  ADMIN: '/app/admin',
+};
+
+export const profileRoute = (id) => id ? `/app/profile/${id}` : '/app/profile';
+export const chatRoute = (userId) => userId ? `/app/chat?user=${userId}` : '/app/chat';

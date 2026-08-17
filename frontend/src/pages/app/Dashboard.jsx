@@ -5,19 +5,19 @@ import {
   FiAward, FiZap, FiStar, FiChevronRight, FiClock, FiBarChart2,
   FiActivity, FiUserCheck, FiTrendingUp,
 } from 'react-icons/fi';
-import Card from '../components/ui/Card';
-import StatCard from '../components/ui/StatCard';
-import ProgressBar from '../components/ui/ProgressBar';
-import Tag from '../components/ui/Tag';
-import Avatar from '../components/ui/Avatar';
-import EmptyState from '../components/ui/EmptyState';
-import { CardSkeleton } from '../components/ui/Skeleton';
-import Button from '../components/ui/Button';
-import { getDashboard } from '../services/ai';
-import { useAuth } from '../context/AuthContext';
-import { useDocumentTitle } from '../hooks';
-import { formatDateTime, timeAgo } from '../utils/helpers';
-import { scoreLabel } from '../utils/constants';
+import Card from '../../components/ui/Card';
+import StatCard from '../../components/ui/StatCard';
+import ProgressBar from '../../components/ui/ProgressBar';
+import Tag from '../../components/ui/Tag';
+import Avatar from '../../components/ui/Avatar';
+import EmptyState from '../../components/ui/EmptyState';
+import { CardSkeleton } from '../../components/ui/Skeleton';
+import Button from '../../components/ui/Button';
+import { getDashboard } from '../../services/ai';
+import { useAuth } from '../../context/AuthContext';
+import { useDocumentTitle } from '../../hooks';
+import { formatDateTime, timeAgo } from '../../utils/helpers';
+import { scoreLabel } from '../../utils/constants';
 
 export default function Dashboard() {
   useDocumentTitle('Dashboard');
@@ -79,8 +79,8 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Link to="/discover" className="btn-secondary"><FiZap className="h-4 w-4" /> Find peers</Link>
-          <Link to="/recommendations" className="btn-primary">AI matches <FiChevronRight className="h-4 w-4" /></Link>
+          <Link to="/app/discover" className="btn-secondary"><FiZap className="h-4 w-4" /> Find peers</Link>
+          <Link to="/app/recommendations" className="btn-primary">AI matches <FiChevronRight className="h-4 w-4" /></Link>
         </div>
       </div>
 
@@ -111,7 +111,7 @@ export default function Dashboard() {
           <Card>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-display font-bold">Mentoring progress</h2>
-              <Link to="/sessions" className="text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300">View sessions</Link>
+              <Link to="/app/sessions" className="text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300">View sessions</Link>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-xl bg-brand-500/10 p-3 text-center">
@@ -175,11 +175,11 @@ export default function Dashboard() {
             <Card>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="font-display font-bold">Active connections</h2>
-                <Link to="/connections" className="text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300">View all</Link>
+                <Link to="/app/connections" className="text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300">View all</Link>
               </div>
               <div className="space-y-3">
                 {connectionsSummary.slice(0, 4).map((c) => (
-                  <Link key={c.id} to={`/profile/${c.userId}`} className="flex items-center gap-3 rounded-xl border border-slate-200/60 p-3 transition hover:border-brand-300 dark:border-white/10">
+                  <Link key={c.id} to={`/app/profile/${c.userId}`} className="flex items-center gap-3 rounded-xl border border-slate-200/60 p-3 transition hover:border-brand-300 dark:border-white/10">
                     <Avatar src={c.avatar} name={c.name} size="sm" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-semibold">{c.name}</div>
@@ -196,7 +196,7 @@ export default function Dashboard() {
           <Card>
             <div className="mb-4 flex items-center justify-between">
               <h2 className="font-display font-bold">Upcoming sessions</h2>
-              <Link to="/sessions" className="text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300">View all</Link>
+              <Link to="/app/sessions" className="text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300">View all</Link>
             </div>
             {data?.upcomingSessions?.length ? (
               <div className="space-y-3">
@@ -213,7 +213,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <EmptyState icon="📅" title="No upcoming sessions" description="Schedule one from a chat or match."
-                action={<Link to="/discover" className="btn-secondary">Find a peer</Link>} />
+                action={<Link to="/app/discover" className="btn-secondary">Find a peer</Link>} />
             )}
           </Card>
 
@@ -253,7 +253,7 @@ export default function Dashboard() {
                 ? `You want to learn ${s.learnCount} skill${s.learnCount > 1 ? 's' : ''}. ${s.teachCount ? `You're already teaching ${s.teachCount}.` : 'Start teaching one to unlock mutual matches.'}`
                 : 'Add learning goals to unlock personalized mentor recommendations.'}
             </p>
-            <Link to="/recommendations" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/25">
+            <Link to="/app/recommendations" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/25">
               See my matches <FiChevronRight />
             </Link>
           </Card>
@@ -262,12 +262,12 @@ export default function Dashboard() {
           <Card>
             <h2 className="mb-3 font-display font-bold">Quick actions</h2>
             <div className="space-y-2">
-              <Link to="/calendar" className="btn-secondary w-full">🗓️ Session calendar</Link>
-              <Link to="/mentors" className="btn-secondary w-full">🤝 My mentors</Link>
-              <Link to="/learners" className="btn-secondary w-full">🧑‍🏫 My learners</Link>
-              <Link to="/roadmap" className="btn-secondary w-full">🗺️ Generate a roadmap</Link>
-              <Link to="/leaderboard" className="btn-secondary w-full">🏆 View leaderboard</Link>
-              <Link to="/certificates" className="btn-secondary w-full">📜 My certificates</Link>
+              <Link to="/app/calendar" className="btn-secondary w-full">🗓️ Session calendar</Link>
+              <Link to="/app/mentors" className="btn-secondary w-full">🤝 My mentors</Link>
+              <Link to="/app/learners" className="btn-secondary w-full">🧑‍🏫 My learners</Link>
+              <Link to="/app/roadmap" className="btn-secondary w-full">🗺️ Generate a roadmap</Link>
+              <Link to="/app/leaderboard" className="btn-secondary w-full">🏆 View leaderboard</Link>
+              <Link to="/app/certificates" className="btn-secondary w-full">📜 My certificates</Link>
             </div>
           </Card>
 

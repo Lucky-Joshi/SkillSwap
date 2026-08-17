@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { FiZap, FiSend } from 'react-icons/fi';
-import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
-import RoadmapView from '../components/feature/RoadmapView';
-import Tag from '../components/ui/Tag';
-import { getRoadmap } from '../services/ai';
-import { useDocumentTitle } from '../hooks';
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
+import RoadmapView from '../../components/feature/RoadmapView';
+import Tag from '../../components/ui/Tag';
+import { getRoadmap } from '../../services/ai';
+import { useDocumentTitle } from '../../hooks';
 
 const EXAMPLES = [
   'I want to become a Data Scientist',
@@ -85,7 +85,7 @@ export default function Roadmap() {
         <FiSend className="mt-0.5 shrink-0 text-brand-500" />
         <p>
           <b>Pro tip:</b> share your roadmap with a mentor from{' '}
-          <a href="/recommendations" className="font-semibold text-brand-600 hover:underline dark:text-brand-300">AI Recommendations</a> —
+          <a href="/app/recommendations" className="font-semibold text-brand-600 hover:underline dark:text-brand-300">AI Recommendations</a> —
           they can guide you through each step.
         </p>
       </div>

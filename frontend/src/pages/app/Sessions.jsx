@@ -6,22 +6,22 @@ import {
   FiCalendar, FiCheckCircle, FiClock, FiVideo, FiMapPin, FiXCircle,
   FiPlus, FiArrowRight, FiZap, FiEye,
 } from 'react-icons/fi';
-import Card from '../components/ui/Card';
-import Tabs from '../components/ui/Tabs';
-import Tag from '../components/ui/Tag';
-import Avatar from '../components/ui/Avatar';
-import Button from '../components/ui/Button';
-import EmptyState from '../components/ui/EmptyState';
-import Modal from '../components/ui/Modal';
-import { CardSkeleton } from '../components/ui/Skeleton';
-import SessionForm from '../components/feature/SessionForm';
+import Card from '../../components/ui/Card';
+import Tabs from '../../components/ui/Tabs';
+import Tag from '../../components/ui/Tag';
+import Avatar from '../../components/ui/Avatar';
+import Button from '../../components/ui/Button';
+import EmptyState from '../../components/ui/EmptyState';
+import Modal from '../../components/ui/Modal';
+import { CardSkeleton } from '../../components/ui/Skeleton';
+import SessionForm from '../../components/feature/SessionForm';
 import {
   getSessionDashboard, confirmSession, cancelSession, completeSession,
-} from '../services/sessions';
-import { getRelationships } from '../services/matches';
-import { getNextSteps } from '../services/ai';
-import { useDocumentTitle } from '../hooks';
-import { formatDateTime, timeAgo } from '../utils/helpers';
+} from '../../services/sessions';
+import { getRelationships } from '../../services/matches';
+import { getNextSteps } from '../../services/ai';
+import { useDocumentTitle } from '../../hooks';
+import { formatDateTime, timeAgo } from '../../utils/helpers';
 
 const STATUS_TONE = {
   pending: 'amber',
@@ -170,7 +170,7 @@ function CompleteModal({ session, onClose, onDone }) {
 
           <div className="flex gap-2">
             <Button className="flex-1" onClick={onClose}>Done</Button>
-            <Link to="/roadmap" className="btn-secondary flex-1 justify-center">View roadmap</Link>
+            <Link to="/app/roadmap" className="btn-secondary flex-1 justify-center">View roadmap</Link>
           </div>
         </div>
       </Modal>
@@ -287,7 +287,7 @@ export default function Sessions() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Link to="/calendar" className="btn-secondary"><FiCalendar className="h-4 w-4" /> Calendar</Link>
+          <Link to="/app/calendar" className="btn-secondary"><FiCalendar className="h-4 w-4" /> Calendar</Link>
           <Button onClick={openScheduler}><FiPlus className="h-4 w-4" /> Schedule Session</Button>
         </div>
       </div>
@@ -348,7 +348,7 @@ export default function Sessions() {
                   </div>
                   <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
                     <Avatar src={other?.avatar} name={other?.name} size="xs" />
-                    <Link to={`/profile/${other?.id}`} className="font-semibold hover:text-brand-600 dark:hover:text-brand-300">{other?.name}</Link>
+                    <Link to={`/app/profile/${other?.id}`} className="font-semibold hover:text-brand-600 dark:hover:text-brand-300">{other?.name}</Link>
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { FiDownload, FiFileText, FiCheckCircle } from 'react-icons/fi';
-import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
-import EmptyState from '../components/ui/EmptyState';
-import { CardSkeleton } from '../components/ui/Skeleton';
-import { getCertificates, grantCertificate } from '../services/certificates';
-import { useDocumentTitle } from '../hooks';
-import { formatDate } from '../utils/helpers';
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
+import EmptyState from '../../components/ui/EmptyState';
+import { CardSkeleton } from '../../components/ui/Skeleton';
+import { getCertificates, grantCertificate } from '../../services/certificates';
+import { useDocumentTitle } from '../../hooks';
+import { formatDate } from '../../utils/helpers';
 
 export default function Certificates() {
   useDocumentTitle('Certificates');

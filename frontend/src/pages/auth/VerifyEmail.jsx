@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import AuthLayout from '../layouts/AuthLayout';
-import Button from '../components/ui/Button';
-import Spinner from '../components/ui/Spinner';
-import { verifyEmail } from '../services/auth';
-import { useDocumentTitle } from '../hooks';
+import AuthLayout from '../../layouts/AuthLayout';
+import Button from '../../components/ui/Button';
+import Spinner from '../../components/ui/Spinner';
+import { verifyEmail } from '../../services/auth';
+import { useDocumentTitle } from '../../hooks';
 
 export default function VerifyEmail() {
   useDocumentTitle('Verify email');

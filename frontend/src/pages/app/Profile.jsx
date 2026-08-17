@@ -7,29 +7,29 @@ import {
   FiCalendar, FiUpload, FiAward, FiBookOpen, FiTarget, FiCheckCircle, FiX, FiTrash2,
   FiClock, FiBarChart2,
 } from 'react-icons/fi';
-import Card from '../components/ui/Card';
-import Avatar from '../components/ui/Avatar';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
-import TextArea from '../components/ui/TextArea';
-import Select from '../components/ui/Select';
-import RatingStars from '../components/ui/RatingStars';
-import Tag from '../components/ui/Tag';
-import Tabs from '../components/ui/Tabs';
-import Modal from '../components/ui/Modal';
-import Spinner from '../components/ui/Spinner';
-import EmptyState from '../components/ui/EmptyState';
-import SkillPicker from '../components/feature/SkillPicker';
-import SessionForm from '../components/feature/SessionForm';
-import { getUser, updateProfile, uploadAvatar, uploadResume, addSkill, removeUserSkill } from '../services/users';
-import { getSkills } from '../services/skills';
-import { getUserReviews } from '../services/reviews';
-import { getAllBadges } from '../services/badges';
-import { requestMatch } from '../services/matches';
-import { useAuth } from '../context/AuthContext';
-import { useDocumentTitle } from '../hooks';
-import { formatDate, timeAgo, levelLabel } from '../utils/helpers';
-import { AVAILABILITY_OPTIONS, YEAR_OPTIONS, QUALIFICATION_OPTIONS, DEPARTMENT_OPTIONS, TRUST_BREAKDOWN, trustLabel } from '../utils/constants';
+import Card from '../../components/ui/Card';
+import Avatar from '../../components/ui/Avatar';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import TextArea from '../../components/ui/TextArea';
+import Select from '../../components/ui/Select';
+import RatingStars from '../../components/ui/RatingStars';
+import Tag from '../../components/ui/Tag';
+import Tabs from '../../components/ui/Tabs';
+import Modal from '../../components/ui/Modal';
+import Spinner from '../../components/ui/Spinner';
+import EmptyState from '../../components/ui/EmptyState';
+import SkillPicker from '../../components/feature/SkillPicker';
+import SessionForm from '../../components/feature/SessionForm';
+import { getUser, updateProfile, uploadAvatar, uploadResume, addSkill, removeUserSkill } from '../../services/users';
+import { getSkills } from '../../services/skills';
+import { getUserReviews } from '../../services/reviews';
+import { getAllBadges } from '../../services/badges';
+import { requestMatch } from '../../services/matches';
+import { useAuth } from '../../context/AuthContext';
+import { useDocumentTitle } from '../../hooks';
+import { formatDate, timeAgo, levelLabel } from '../../utils/helpers';
+import { AVAILABILITY_OPTIONS, YEAR_OPTIONS, QUALIFICATION_OPTIONS, DEPARTMENT_OPTIONS, TRUST_BREAKDOWN, trustLabel } from '../../utils/constants';
 
 export default function Profile() {
   useDocumentTitle('Profile');
@@ -260,7 +260,7 @@ export default function Profile() {
               )
             ) : p.relationship?.active ? (
               <>
-                <Button variant="secondary" onClick={() => navigate(`/chat?user=${profileId}`)}><FiMessageSquare className="h-4 w-4" /> Message</Button>
+                <Button variant="secondary" onClick={() => navigate(`/app/chat?user=${profileId}`)}><FiMessageSquare className="h-4 w-4" /> Message</Button>
                 <Button variant="secondary" onClick={() => setSessionOpen(true)}><FiCalendar className="h-4 w-4" /> Schedule</Button>
               </>
             ) : p.relationship ? (

@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FiSearch, FiFilter, FiSliders } from 'react-icons/fi';
-import Card from '../components/ui/Card';
-import MatchCard from '../components/feature/MatchCard';
-import Tabs from '../components/ui/Tabs';
-import Pagination from '../components/ui/Pagination';
-import EmptyState from '../components/ui/EmptyState';
-import { CardSkeleton } from '../components/ui/Skeleton';
-import Button from '../components/ui/Button';
-import { searchUsers } from '../services/users';
-import { requestMatch } from '../services/matches';
-import { useDebounce, useDocumentTitle } from '../hooks';
-import { SKILL_CATEGORIES, AVAILABILITY_OPTIONS } from '../utils/constants';
+import Card from '../../components/ui/Card';
+import MatchCard from '../../components/feature/MatchCard';
+import Tabs from '../../components/ui/Tabs';
+import Pagination from '../../components/ui/Pagination';
+import EmptyState from '../../components/ui/EmptyState';
+import { CardSkeleton } from '../../components/ui/Skeleton';
+import Button from '../../components/ui/Button';
+import { searchUsers } from '../../services/users';
+import { requestMatch } from '../../services/matches';
+import { useDebounce, useDocumentTitle } from '../../hooks';
+import { SKILL_CATEGORIES, AVAILABILITY_OPTIONS } from '../../utils/constants';
 import toast from 'react-hot-toast';
 
 export default function Discover() {

@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import Card from '../components/ui/Card';
-import Tabs from '../components/ui/Tabs';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
-import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
-import { useDocumentTitle } from '../hooks';
-import { deleteMyAccount } from '../services/users';
-import { AVAILABILITY_OPTIONS, TRUST_BREAKDOWN, trustLabel } from '../utils/constants';
+import Card from '../../components/ui/Card';
+import Tabs from '../../components/ui/Tabs';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import Select from '../../components/ui/Select';
+import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+import { useDocumentTitle } from '../../hooks';
+import { deleteMyAccount } from '../../services/users';
+import { AVAILABILITY_OPTIONS, TRUST_BREAKDOWN, trustLabel } from '../../utils/constants';
 
 export default function Settings() {
   useDocumentTitle('Settings');

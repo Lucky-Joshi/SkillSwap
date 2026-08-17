@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FiRefreshCw, FiZap, FiServer } from 'react-icons/fi';
-import MatchCard from '../components/feature/MatchCard';
-import Tabs from '../components/ui/Tabs';
-import EmptyState from '../components/ui/EmptyState';
-import { CardSkeleton } from '../components/ui/Skeleton';
-import Button from '../components/ui/Button';
-import Tag from '../components/ui/Tag';
-import { getRecommendations, refreshRecommendations } from '../services/recommendations';
-import { requestMatch } from '../services/matches';
-import { useAuth } from '../context/AuthContext';
-import { useDocumentTitle } from '../hooks';
+import MatchCard from '../../components/feature/MatchCard';
+import Tabs from '../../components/ui/Tabs';
+import EmptyState from '../../components/ui/EmptyState';
+import { CardSkeleton } from '../../components/ui/Skeleton';
+import Button from '../../components/ui/Button';
+import Tag from '../../components/ui/Tag';
+import { getRecommendations, refreshRecommendations } from '../../services/recommendations';
+import { requestMatch } from '../../services/matches';
+import { useAuth } from '../../context/AuthContext';
+import { useDocumentTitle } from '../../hooks';
 import toast from 'react-hot-toast';
 
 export default function Recommendations() {
@@ -96,7 +96,7 @@ export default function Recommendations() {
           <div className="text-3xl">💡</div>
           <p className="text-sm text-slate-600 dark:text-slate-300">
             Add skills you <b>want to learn</b> to get personalized mentor recommendations.{' '}
-            <a href="/profile" className="font-semibold text-brand-600 hover:underline dark:text-brand-300">Update profile →</a>
+            <a href="/app/profile" className="font-semibold text-brand-600 hover:underline dark:text-brand-300">Update profile →</a>
           </p>
         </div>
       )}

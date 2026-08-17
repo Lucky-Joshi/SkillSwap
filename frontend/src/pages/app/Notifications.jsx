@@ -2,19 +2,19 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiCheck, FiCheckCircle, FiMessageSquare, FiCalendar, FiArrowRight, FiZap } from 'react-icons/fi';
-import Card from '../components/ui/Card';
-import Tag from '../components/ui/Tag';
-import Avatar from '../components/ui/Avatar';
-import Button from '../components/ui/Button';
-import EmptyState from '../components/ui/EmptyState';
-import Modal from '../components/ui/Modal';
-import { CardSkeleton } from '../components/ui/Skeleton';
-import Pagination from '../components/ui/Pagination';
-import { getNotifications, markRead, markAllRead } from '../services/notifications';
-import { getPendingRequests } from '../services/matches';
-import { acceptMatch, rejectMatch } from '../services/matches';
-import { useDocumentTitle } from '../hooks';
-import { timeAgo } from '../utils/helpers';
+import Card from '../../components/ui/Card';
+import Tag from '../../components/ui/Tag';
+import Avatar from '../../components/ui/Avatar';
+import Button from '../../components/ui/Button';
+import EmptyState from '../../components/ui/EmptyState';
+import Modal from '../../components/ui/Modal';
+import { CardSkeleton } from '../../components/ui/Skeleton';
+import Pagination from '../../components/ui/Pagination';
+import { getNotifications, markRead, markAllRead } from '../../services/notifications';
+import { getPendingRequests } from '../../services/matches';
+import { acceptMatch, rejectMatch } from '../../services/matches';
+import { useDocumentTitle } from '../../hooks';
+import { timeAgo } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
 const ICONS = {
@@ -101,7 +101,7 @@ export default function Notifications() {
           <h2 className="font-display font-bold">Learning requests</h2>
           {requests.map((r) => (
             <Card key={r.id} className="flex flex-col gap-4 sm:flex-row sm:items-center !p-4">
-              <Link to={`/profile/${r.otherUser.id}`} className="flex min-w-0 items-center gap-3">
+              <Link to={`/app/profile/${r.otherUser.id}`} className="flex min-w-0 items-center gap-3">
                 <Avatar src={r.otherUser?.avatar} name={r.otherUser?.name} size="sm" />
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold">{r.otherUser?.name}</div>
@@ -145,7 +145,7 @@ export default function Notifications() {
               </div>
               {n.type === 'message' && (
                 <Link
-                  to={`/chat?user=${n.data?.senderId}`}
+                  to={`/app/chat?user=${n.data?.senderId}`}
                   className="hidden shrink-0 items-center gap-1 text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300 sm:flex"
                 >
                   <FiMessageSquare /> Open chat
@@ -153,7 +153,7 @@ export default function Notifications() {
               )}
               {(n.type === 'session' || n.type === 'reminder') && (
                 <Link
-                  to="/sessions"
+                  to="/app/sessions"
                   className="hidden shrink-0 items-center gap-1 text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300 sm:flex"
                 >
                   <FiCalendar /> Open session
@@ -161,7 +161,7 @@ export default function Notifications() {
               )}
               {n.type === 'mentorship' && (
                 <Link
-                  to="/connections"
+                  to="/app/connections"
                   className="hidden shrink-0 items-center gap-1 text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300 sm:flex"
                 >
                   🤝 View
@@ -206,13 +206,13 @@ export default function Notifications() {
               <div className="space-y-2">
                 <Button className="w-full" onClick={() => {
                   setAcceptedUser(null);
-                  navigate(`/sessions`);
+                  navigate(`/app/sessions`);
                 }}>
                   <FiCalendar className="h-4 w-4" /> Schedule first session <FiArrowRight className="h-4 w-4" />
                 </Button>
                 <Button variant="secondary" className="w-full" onClick={() => {
                   setAcceptedUser(null);
-                  navigate(`/chat?user=${acceptedUser.id}`);
+                  navigate(`/app/chat?user=${acceptedUser.id}`);
                 }}>
                   <FiMessageSquare className="h-4 w-4" /> Start chatting
                 </Button>

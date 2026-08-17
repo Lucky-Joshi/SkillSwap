@@ -5,18 +5,18 @@ import {
   FiCalendar, FiMessageSquare, FiUser, FiUsers, FiTrash2, FiCheck,
   FiClock, FiVideo, FiMapPin, FiArrowRight, FiBarChart2, FiRepeat,
 } from 'react-icons/fi';
-import Card from '../components/ui/Card';
-import Tabs from '../components/ui/Tabs';
-import Tag from '../components/ui/Tag';
-import Avatar from '../components/ui/Avatar';
-import Button from '../components/ui/Button';
-import EmptyState from '../components/ui/EmptyState';
-import RatingStars from '../components/ui/RatingStars';
-import { CardSkeleton } from '../components/ui/Skeleton';
-import SessionForm from '../components/feature/SessionForm';
-import { getRelationships, cancelMatch } from '../services/matches';
-import { useDocumentTitle } from '../hooks';
-import { formatDate, formatDateTime } from '../utils/helpers';
+import Card from '../../components/ui/Card';
+import Tabs from '../../components/ui/Tabs';
+import Tag from '../../components/ui/Tag';
+import Avatar from '../../components/ui/Avatar';
+import Button from '../../components/ui/Button';
+import EmptyState from '../../components/ui/EmptyState';
+import RatingStars from '../../components/ui/RatingStars';
+import { CardSkeleton } from '../../components/ui/Skeleton';
+import SessionForm from '../../components/feature/SessionForm';
+import { getRelationships, cancelMatch } from '../../services/matches';
+import { useDocumentTitle } from '../../hooks';
+import { formatDate, formatDateTime } from '../../utils/helpers';
 
 export default function Connections({ initialTab = 'mentors' }) {
   useDocumentTitle('My Connections');
@@ -99,7 +99,7 @@ export default function Connections({ initialTab = 'mentors' }) {
           icon="🤝"
           title={`No ${heading.toLowerCase()} yet`}
           description="Accept a connection request or discover students to get started."
-          action={<Link to="/discover" className="btn-primary"><FiUsers className="h-4 w-4" /> Find connections</Link>}
+          action={<Link to="/app/discover" className="btn-primary"><FiUsers className="h-4 w-4" /> Find connections</Link>}
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -109,11 +109,11 @@ export default function Connections({ initialTab = 'mentors' }) {
             return (
               <Card key={r.id} className="flex flex-col gap-4">
                 <div className="flex items-start gap-4">
-                  <Link to={`/profile/${r.otherUser?.id}`}>
+                  <Link to={`/app/profile/${r.otherUser?.id}`}>
                     <Avatar src={r.otherUser?.avatar} name={r.otherUser?.name} size="lg" />
                   </Link>
                   <div className="min-w-0 flex-1">
-                    <Link to={`/profile/${r.otherUser?.id}`} className="flex items-center gap-2">
+                    <Link to={`/app/profile/${r.otherUser?.id}`} className="flex items-center gap-2">
                       <h3 className="truncate font-display text-base font-bold hover:text-brand-600 dark:hover:text-brand-300">{r.otherUser?.name}</h3>
                       {typeTag(r.type)}
                     </Link>
@@ -182,14 +182,14 @@ export default function Connections({ initialTab = 'mentors' }) {
                     </Button>
                   )}
                   {stats.nextSession && (
-                    <Button size="sm" className="flex-1" onClick={() => navigate('/sessions')}>
+                    <Button size="sm" className="flex-1" onClick={() => navigate('/app/sessions')}>
                       <FiCalendar className="h-3.5 w-3.5" /> View sessions
                     </Button>
                   )}
-                  <Link to={`/chat?user=${r.otherUser?.id}`} className="btn-secondary !px-3">
+                  <Link to={`/app/chat?user=${r.otherUser?.id}`} className="btn-secondary !px-3">
                     <FiMessageSquare className="h-3.5 w-3.5" />
                   </Link>
-                  <Link to={`/profile/${r.otherUser?.id}`} className="btn-secondary !px-3">
+                  <Link to={`/app/profile/${r.otherUser?.id}`} className="btn-secondary !px-3">
                     <FiUser className="h-3.5 w-3.5" />
                   </Link>
                   <Button variant="danger" size="sm" className="!px-3" onClick={() => setConfirmCancel(r)} title="End connection">

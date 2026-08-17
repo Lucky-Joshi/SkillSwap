@@ -1,34 +1,15 @@
-import { lazy, Suspense, useMemo } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import { lazy, Suspense } from 'react';
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { ThemeProvider } from './context/ThemeContext';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import PublicLayout from './layouts/PublicLayout';
 import MainLayout from './layouts/MainLayout';
+import AuthLayout from './layouts/AuthLayout';
+import ProtectedRoute from './routes/ProtectedRoute';
+import PublicOnlyRoute from './routes/PublicOnlyRoute';
 import Spinner from './components/ui/Spinner';
-
-const Landing = lazy(() => import('./pages/Landing'));
-const Login = lazy(() => import('./pages/Login'));
-const Register = lazy(() => import('./pages/Register'));
-const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
-const ResetPassword = lazy(() => import('./pages/ResetPassword'));
-const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Discover = lazy(() => import('./pages/Discover'));
-const Recommendations = lazy(() => import('./pages/Recommendations'));
-const Profile = lazy(() => import('./pages/Profile'));
-const Chat = lazy(() => import('./pages/Chat'));
-const Sessions = lazy(() => import('./pages/Sessions'));
-const Calendar = lazy(() => import('./pages/Calendar'));
-const Mentorships = lazy(() => import('./pages/Mentorships'));
-const Notifications = lazy(() => import('./pages/Notifications'));
-const Leaderboard = lazy(() => import('./pages/Leaderboard'));
-const Certificates = lazy(() => import('./pages/Certificates'));
-const Settings = lazy(() => import('./pages/Settings'));
-const Roadmap = lazy(() => import('./pages/Roadmap'));
-const Admin = lazy(() => import('./pages/Admin'));
-const NotFound = lazy(() => import('./pages/NotFound'));
 
 const PageLoader = () => (
   <div className="flex min-h-[60vh] items-center justify-center">
@@ -36,53 +17,108 @@ const PageLoader = () => (
   </div>
 );
 
-function Protected({ children }) {
-  const { token, loading } = useAuth();
-  if (loading) return <PageLoader />;
-  if (!token) return <Navigate to="/login" replace />;
-  return <MainLayout>{children}</MainLayout>;
+const Loadable = (Component) => {
+  const Wrapped = (props) => (
+    <Suspense fallback={<PageLoader />}>
+      <Component {...props} />
+    </Suspense>
+  );
+  Wrapped.displayName = `LazyLoad(${Component.displayName || Component.name || 'Component'})`;
+  return Wrapped;
+};
+
+const Home = Loadable(lazy(() => import('./pages/public/Home')));
+const Features = Loadable(lazy(() => import('./pages/public/Features')));
+const HowItWorks = Loadable(lazy(() => import('./pages/public/HowItWorks')));
+const AIPage = Loadable(lazy(() => import('./pages/public/AI')));
+const About = Loadable(lazy(() => import('./pages/public/About')));
+const FAQ = Loadable(lazy(() => import('./pages/public/FAQ')));
+const Contact = Loadable(lazy(() => import('./pages/public/Contact')));
+
+const Login = Loadable(lazy(() => import('./pages/auth/Login')));
+const Register = Loadable(lazy(() => import('./pages/auth/Register')));
+const ForgotPassword = Loadable(lazy(() => import('./pages/auth/ForgotPassword')));
+const ResetPassword = Loadable(lazy(() => import('./pages/auth/ResetPassword')));
+const VerifyEmail = Loadable(lazy(() => import('./pages/auth/VerifyEmail')));
+
+const Dashboard = Loadable(lazy(() => import('./pages/app/Dashboard')));
+const Discover = Loadable(lazy(() => import('./pages/app/Discover')));
+const Recommendations = Loadable(lazy(() => import('./pages/app/Recommendations')));
+const Mentorships = Loadable(lazy(() => import('./pages/app/Mentorships')));
+const Sessions = Loadable(lazy(() => import('./pages/app/Sessions')));
+const Calendar = Loadable(lazy(() => import('./pages/app/Calendar')));
+const Chat = Loadable(lazy(() => import('./pages/app/Chat')));
+const Notifications = Loadable(lazy(() => import('./pages/app/Notifications')));
+const Leaderboard = Loadable(lazy(() => import('./pages/app/Leaderboard')));
+const Roadmap = Loadable(lazy(() => import('./pages/app/Roadmap')));
+const Profile = Loadable(lazy(() => import('./pages/app/Profile')));
+const Settings = Loadable(lazy(() => import('./pages/app/Settings')));
+const Certificates = Loadable(lazy(() => import('./pages/app/Certificates')));
+const Admin = Loadable(lazy(() => import('./pages/app/Admin')));
+const NotFound = Loadable(lazy(() => import('./pages/NotFound')));
+
+function AppLayout() {
+  return (
+    <ProtectedRoute>
+      <MainLayout>
+        <Outlet />
+      </MainLayout>
+    </ProtectedRoute>
+  );
 }
 
-function PublicOnly({ children }) {
-  const { token, loading } = useAuth();
-  if (loading) return <PageLoader />;
-  if (token) return <Navigate to="/dashboard" replace />;
-  return children;
+function AuthPage({ title, subtitle, children }) {
+  return (
+    <PublicOnlyRoute>
+      <AuthLayout title={title} subtitle={subtitle}>
+        {children}
+      </AuthLayout>
+    </PublicOnlyRoute>
+  );
 }
 
 export default function App() {
-  const auth = useAuth();
-  const appShell = useMemo(() => auth.token, [auth.token]);
-
   return (
     <Suspense fallback={<PageLoader />}>
       <AnimatePresence mode="wait">
-        <Routes key={appShell ? 'authed' : 'guest'}>
-          <Route path="/" element={<PublicOnly><Landing /></PublicOnly>} />
-          <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
-          <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
-          <Route path="/forgot-password" element={<PublicOnly><ForgotPassword /></PublicOnly>} />
-          <Route path="/reset-password" element={<PublicOnly><ResetPassword /></PublicOnly>} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
+        <Routes>
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/features" element={<Features />} />
+            <Route path="/how-it-works" element={<HowItWorks />} />
+            <Route path="/ai" element={<AIPage />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/contact" element={<Contact />} />
+          </Route>
 
-          <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
-          <Route path="/discover" element={<Protected><Discover /></Protected>} />
-          <Route path="/recommendations" element={<Protected><Recommendations /></Protected>} />
-          <Route path="/chat" element={<Protected><Chat /></Protected>} />
-          <Route path="/sessions" element={<Protected><Sessions /></Protected>} />
-          <Route path="/calendar" element={<Protected><Calendar /></Protected>} />
-          <Route path="/connections" element={<Protected><Mentorships /></Protected>} />
-          <Route path="/mentors" element={<Protected><Mentorships initialTab="learner" /></Protected>} />
-          <Route path="/learners" element={<Protected><Mentorships initialTab="mentor" /></Protected>} />
-          <Route path="/peers" element={<Protected><Mentorships initialTab="peer" /></Protected>} />
-          <Route path="/roadmap" element={<Protected><Roadmap /></Protected>} />
-          <Route path="/notifications" element={<Protected><Notifications /></Protected>} />
-          <Route path="/leaderboard" element={<Protected><Leaderboard /></Protected>} />
-          <Route path="/certificates" element={<Protected><Certificates /></Protected>} />
-          <Route path="/profile" element={<Protected><Profile /></Protected>} />
-          <Route path="/profile/:id" element={<Protected><Profile /></Protected>} />
-          <Route path="/settings" element={<Protected><Settings /></Protected>} />
-          <Route path="/admin" element={<Protected><Admin /></Protected>} />
+          <Route path="/login" element={<AuthPage title="Welcome back" subtitle="Log in to continue learning and teaching."><Login /></AuthPage>} />
+          <Route path="/register" element={<AuthPage title="Create your account" subtitle=""><Register /></AuthPage>} />
+          <Route path="/forgot-password" element={<AuthPage title="Reset your password" subtitle="Enter your email and we'll send you a reset link."><ForgotPassword /></AuthPage>} />
+          <Route path="/reset-password/:token" element={<AuthPage title="Set new password" subtitle=""><ResetPassword /></AuthPage>} />
+          <Route path="/verify-email" element={<AuthPage title="Verify your email" subtitle=""><VerifyEmail /></AuthPage>} />
+
+          <Route path="/app" element={<AppLayout />}>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="discover" element={<Discover />} />
+            <Route path="recommendations" element={<Recommendations />} />
+            <Route path="connections" element={<Mentorships />} />
+            <Route path="mentors" element={<Mentorships initialTab="learner" />} />
+            <Route path="learners" element={<Mentorships initialTab="mentor" />} />
+            <Route path="peers" element={<Mentorships initialTab="peer" />} />
+            <Route path="sessions" element={<Sessions />} />
+            <Route path="calendar" element={<Calendar />} />
+            <Route path="chat" element={<Chat />} />
+            <Route path="notifications" element={<Notifications />} />
+            <Route path="leaderboard" element={<Leaderboard />} />
+            <Route path="roadmap" element={<Roadmap />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="profile/:id" element={<Profile />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="certificates" element={<Certificates />} />
+            <Route path="admin" element={<Admin />} />
+          </Route>
 
           <Route path="*" element={<NotFound />} />
         </Routes>

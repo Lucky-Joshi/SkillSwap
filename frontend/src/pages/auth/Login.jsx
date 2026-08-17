@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
-import AuthLayout from '../layouts/AuthLayout';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
-import { useAuth } from '../context/AuthContext';
-import { useDocumentTitle } from '../hooks';
+import AuthLayout from '../../layouts/AuthLayout';
+import Input from '../../components/ui/Input';
+import Button from '../../components/ui/Button';
+import { useAuth } from '../../context/AuthContext';
+import { useDocumentTitle } from '../../hooks';
 
 export default function Login() {
   useDocumentTitle('Log in');
@@ -19,7 +19,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(values.email, values.password);
-      navigate('/dashboard');
+      navigate('/app/dashboard');
     } catch (err) {
       toast.error(err.message);
     } finally {

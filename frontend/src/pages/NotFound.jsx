@@ -13,7 +13,7 @@ export default function NotFound() {
         </p>
         <div className="flex gap-3">
           <Link to="/" className="btn-secondary flex-1">Home</Link>
-          <Link to="/dashboard" className="btn-primary flex-1">Dashboard</Link>
+          <Link to="/app/dashboard" className="btn-primary flex-1">Dashboard</Link>
         </div>
       </div>
     </AuthLayout>

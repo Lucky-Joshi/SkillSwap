@@ -3,15 +3,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { FiSend, FiArrowLeft, FiCheck, FiCheckSquare, FiLock } from 'react-icons/fi';
 import { motion } from 'framer-motion';
-import Avatar from '../components/ui/Avatar';
-import EmptyState from '../components/ui/EmptyState';
-import Tag from '../components/ui/Tag';
-import Button from '../components/ui/Button';
-import { getConversations, getMessages, sendMessage } from '../services/chat';
-import { getUser } from '../services/users';
-import { useSocket } from '../context/SocketContext';
-import { useDocumentTitle } from '../hooks';
-import { timeAgo } from '../utils/helpers';
+import Avatar from '../../components/ui/Avatar';
+import EmptyState from '../../components/ui/EmptyState';
+import Tag from '../../components/ui/Tag';
+import Button from '../../components/ui/Button';
+import { getConversations, getMessages, sendMessage } from '../../services/chat';
+import { getUser } from '../../services/users';
+import { useSocket } from '../../context/SocketContext';
+import { useDocumentTitle } from '../../hooks';
+import { timeAgo } from '../../utils/helpers';
 
 export default function Chat() {
   useDocumentTitle('Chat');
@@ -203,7 +203,7 @@ export default function Chat() {
                 icon="🤝"
                 title="No conversations yet"
                 description="Chat unlocks when a mentorship request is accepted. Find a mentor to get started."
-                action={<Button size="sm" onClick={() => navigate('/recommendations')}>Find a mentor</Button>}
+                action={<Button size="sm" onClick={() => navigate('/app/recommendations')}>Find a mentor</Button>}
               />
             </div>
           ) : (
@@ -213,7 +213,7 @@ export default function Chat() {
               return (
                 <button
                   key={c.userId}
-                  onClick={() => { setActiveId(c.userId); setMessages([]); navigate(`/chat?user=${c.userId}`, { replace: true }); }}
+                  onClick={() => { setActiveId(c.userId); setMessages([]); navigate(`/app/chat?user=${c.userId}`, { replace: true }); }}
                   className={`flex w-full items-center gap-3 border-b border-slate-200/40 p-4 text-left transition hover:bg-slate-50 dark:border-white/5 dark:hover:bg-slate-800/50 ${isActive ? 'bg-brand-500/5 dark:bg-brand-500/10' : ''}`}
                 >
                   <div className="relative shrink-0">
@@ -280,8 +280,8 @@ export default function Chat() {
                 </div>
               )}
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => navigate('/recommendations')}>Find a mentor</Button>
-                <Button size="sm" variant="ghost" onClick={() => navigate('/sessions')}>View sessions</Button>
+                <Button size="sm" onClick={() => navigate('/app/recommendations')}>Find a mentor</Button>
+                <Button size="sm" variant="ghost" onClick={() => navigate('/app/sessions')}>View sessions</Button>
               </div>
             </div>
           ) : (
