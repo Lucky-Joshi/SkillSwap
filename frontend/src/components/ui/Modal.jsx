@@ -1,9 +1,69 @@
+import React, { useRef, useEffect, useCallback, useId } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { FiX } from 'react-icons/fi';
 import { cx } from '../../utils/helpers';
 
-export default function Modal({ open, onClose, title, children, className = '', size = 'md' }) {
+function getFocusableElements(container) {
+  if (!container) return [];
+  return container.querySelectorAll(
+    'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  );
+}
+
+function Modal({ open, onClose, title, children, className = '', size = 'md' }) {
   const sizes = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' };
+  const titleId = useId();
+  const modalRef = useRef(null);
+  const previousFocusRef = useRef(null);
+
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusable = getFocusableElements(modalRef.current);
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    },
+    [onClose]
+  );
+
+  useEffect(() => {
+    if (open) {
+      previousFocusRef.current = document.activeElement;
+      const timer = setTimeout(() => {
+        if (modalRef.current) {
+          const focusable = getFocusableElements(modalRef.current);
+          if (focusable.length > 0) focusable[0].focus();
+          else modalRef.current.focus();
+        }
+      }, 50);
+      document.addEventListener('keydown', handleKeyDown);
+      return () => {
+        clearTimeout(timer);
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    } else if (previousFocusRef.current) {
+      previousFocusRef.current.focus();
+      previousFocusRef.current = null;
+    }
+  }, [open, handleKeyDown]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -13,8 +73,14 @@ export default function Modal({ open, onClose, title, children, className = '', 
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
           onClick={onClose}
+          role="presentation"
         >
           <motion.div
+            ref={modalRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
             initial={{ scale: 0.92, y: 20, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.92, y: 20, opacity: 0 }}
@@ -23,8 +89,8 @@ export default function Modal({ open, onClose, title, children, className = '', 
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-slate-200/60 px-6 py-4 dark:border-white/10">
-              <h3 className="font-display text-lg font-bold">{title}</h3>
-              <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800">
+              <h3 id={titleId} className="font-display text-lg font-bold">{title}</h3>
+              <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Close dialog">
                 <FiX className="h-5 w-5" />
               </button>
             </div>
@@ -35,3 +101,5 @@ export default function Modal({ open, onClose, title, children, className = '', 
     </AnimatePresence>
   );
 }
+
+export default React.memo(Modal);

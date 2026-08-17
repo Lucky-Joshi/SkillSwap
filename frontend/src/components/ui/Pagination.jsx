@@ -1,6 +1,7 @@
+import React from 'react';
 import { paginationWindow, cx } from '../../utils/helpers';
 
-export default function Pagination({ page, totalPages, onChange, className }) {
+function Pagination({ page, totalPages, onChange, className }) {
   if (totalPages <= 1) return null;
   const pages = paginationWindow(page, totalPages);
   return (
@@ -36,3 +37,5 @@ export default function Pagination({ page, totalPages, onChange, className }) {
     </div>
   );
 }
+
+export default React.memo(Pagination);

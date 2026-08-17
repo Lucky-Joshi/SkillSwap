@@ -1,10 +1,11 @@
+import React from 'react';
 import { cx } from '../../utils/helpers';
 
-export function Skeleton({ className }) {
+export const Skeleton = React.memo(function Skeleton({ className }) {
   return <div className={cx('skeleton', className)} />;
-}
+});
 
-export function CardSkeleton() {
+export const CardSkeleton = React.memo(function CardSkeleton() {
   return (
     <div className="glass rounded-2xl p-6">
       <div className="flex items-center gap-4">
@@ -25,4 +26,4 @@ export function CardSkeleton() {
       </div>
     </div>
   );
-}
+});

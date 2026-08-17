@@ -1,6 +1,7 @@
+import React from 'react';
 import { cx } from '../../utils/helpers';
 
-export default function ProgressBar({ value = 0, className, barClassName }) {
+function ProgressBar({ value = 0, className, barClassName }) {
   return (
     <div className={cx('h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700', className)}>
       <div
@@ -10,3 +11,5 @@ export default function ProgressBar({ value = 0, className, barClassName }) {
     </div>
   );
 }
+
+export default React.memo(ProgressBar);

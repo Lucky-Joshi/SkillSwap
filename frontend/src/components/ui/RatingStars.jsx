@@ -1,7 +1,8 @@
+import React from 'react';
 import { FiStar } from 'react-icons/fi';
 import { cx } from '../../utils/helpers';
 
-export default function RatingStars({ rating = 0, count, size = 'text-sm' }) {
+function RatingStars({ rating = 0, count, size = 'text-sm' }) {
   const rounded = Math.round(rating);
   return (
     <div className="flex items-center gap-1.5">
@@ -22,3 +23,5 @@ export default function RatingStars({ rating = 0, count, size = 'text-sm' }) {
     </div>
   );
 }
+
+export default React.memo(RatingStars);
