@@ -1,40 +1,35 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { FiSend, FiMessageSquare, FiArrowLeft, FiCheck, FiCheckSquare, FiPlus, FiSearch } from 'react-icons/fi';
-import { motion, AnimatePresence } from 'framer-motion';
+import { FiSend, FiArrowLeft, FiCheck, FiCheckSquare, FiLock } from 'react-icons/fi';
+import { motion } from 'framer-motion';
 import Avatar from '../components/ui/Avatar';
-import Spinner from '../components/ui/Spinner';
 import EmptyState from '../components/ui/EmptyState';
 import Tag from '../components/ui/Tag';
-import { getConversations, getMessages } from '../services/chat';
-import { getUser, searchUsers } from '../services/users';
-import { useAuth } from '../context/AuthContext';
+import Button from '../components/ui/Button';
+import { getConversations, getMessages, sendMessage } from '../services/chat';
+import { getUser } from '../services/users';
 import { useSocket } from '../context/SocketContext';
-import { useDocumentTitle, useDebounce } from '../hooks';
+import { useDocumentTitle } from '../hooks';
 import { timeAgo } from '../utils/helpers';
 
 export default function Chat() {
   useDocumentTitle('Chat');
-  const { user } = useAuth();
   const { socket, connected } = useSocket();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [conversations, setConversations] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [activeUser, setActiveUser] = useState(null);
+  const [locked, setLocked] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [typingFrom, setTypingFrom] = useState(false);
-  const [newChatOpen, setNewChatOpen] = useState(false);
-  const [peopleQuery, setPeopleQuery] = useState('');
-  const [people, setPeople] = useState([]);
-  const [peopleLoading, setPeopleLoading] = useState(false);
+  const [onlineMap, setOnlineMap] = useState({});
   const bottomRef = useRef(null);
   const typingTimeout = useRef(null);
-  const debouncedPeople = useDebounce(peopleQuery, 300);
 
   const loadConversations = useCallback(async () => {
     try {
@@ -49,66 +44,48 @@ export default function Chat() {
     loadConversations();
   }, [loadConversations]);
 
-  // Open a thread straight from /chat?user=<id> (e.g. a profile "Message" button)
+  // Open a thread straight from /chat?user=<id> (mentor/learner/profile buttons)
   useEffect(() => {
     const initial = searchParams.get('user');
-    if (initial) {
-      setActiveId(initial);
-      setNewChatOpen(false);
-    }
+    if (initial) setActiveId(initial);
   }, [searchParams]);
 
-  // Resolve the other person even before any message exists
+  // Resolve the other person and whether chat is allowed.
   useEffect(() => {
     if (!activeId) {
       setActiveUser(null);
+      setLocked(false);
       return;
     }
     let cancelled = false;
     setActiveUser(null);
+    setLocked(false);
     getUser(activeId)
       .then((res) => {
-        if (!cancelled) setActiveUser(res.user);
+        if (cancelled) return;
+        setActiveUser(res.user);
+        setLocked(!res.user?.relationship || !res.user.relationship.active);
       })
       .catch(() => {
-        if (!cancelled) setActiveUser(null);
+        if (!cancelled) { setActiveUser(null); setLocked(true); }
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [activeId]);
-
-  // People search for starting a new conversation
-  useEffect(() => {
-    if (!newChatOpen || !debouncedPeople.trim()) {
-      setPeople([]);
-      setPeopleLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setPeopleLoading(true);
-    searchUsers({ search: debouncedPeople, limit: 8 })
-      .then((res) => {
-        if (!cancelled) setPeople(res.users || []);
-      })
-      .catch(() => {
-        if (!cancelled) setPeople([]);
-      })
-      .finally(() => {
-        if (!cancelled) setPeopleLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [newChatOpen, debouncedPeople]);
 
   const active = conversations.find((c) => c.userId === activeId);
 
   const loadThread = useCallback(
     async (otherId) => {
-      const res = await getMessages(otherId, { limit: 100 });
-      setMessages(res.data || []);
-      socket?.emit('messages:read', { from: otherId });
+      try {
+        const res = await getMessages(otherId, { limit: 100 });
+        setMessages(res.data || []);
+        socket?.emit('messages:read', { from: otherId });
+      } catch (err) {
+        if (err.status === 403 || String(err.message).toLowerCase().includes('accepted')) {
+          setLocked(true);
+        }
+        setMessages([]);
+      }
       loadConversations();
     },
     [socket, loadConversations]
@@ -118,7 +95,7 @@ export default function Chat() {
     if (activeId) loadThread(activeId);
   }, [activeId, loadThread]);
 
-  // Real-time incoming messages
+  // Real-time incoming messages + presence
   useEffect(() => {
     if (!socket) return undefined;
     const onNew = (msg) => {
@@ -140,27 +117,25 @@ export default function Chat() {
         typingTimeout.current = setTimeout(() => setTypingFrom(false), 1600);
       }
     };
+    const onOnline = ({ userId }) => setOnlineMap((m) => ({ ...m, [userId]: true }));
+    const onOffline = ({ userId }) => setOnlineMap((m) => ({ ...m, [userId]: false }));
     socket.on('message:new', onNew);
     socket.on('message:sent', onSent);
     socket.on('typing', onTyping);
+    socket.on('user:online', onOnline);
+    socket.on('user:offline', onOffline);
     return () => {
       socket.off('message:new', onNew);
       socket.off('message:sent', onSent);
       socket.off('typing', onTyping);
+      socket.off('user:online', onOnline);
+      socket.off('user:offline', onOffline);
     };
   }, [socket, activeId, loadConversations]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, activeId]);
-
-  const startChat = (person) => {
-    setActiveId(person.id);
-    setNewChatOpen(false);
-    setPeopleQuery('');
-    setPeople([]);
-    navigate(`/chat?user=${person.id}`, { replace: true });
-  };
 
   const send = async (e) => {
     e.preventDefault();
@@ -184,7 +159,7 @@ export default function Chat() {
 
   const sendViaRest = async (text) => {
     try {
-      const res = await (await import('../services/chat')).sendMessage({ receiver: activeId, message: text });
+      const res = await sendMessage({ receiver: activeId, message: text });
       setMessages((prev) => [...prev, res.message]);
       loadConversations();
     } catch (err) {
@@ -198,6 +173,9 @@ export default function Chat() {
   };
 
   const otherName = activeUser?.name || active?.user?.name;
+  const otherOnline = activeId
+    ? (onlineMap[activeId] ?? active?.online ?? false)
+    : false;
 
   return (
     <div className="flex h-[calc(100vh-9rem)] min-h-[480px] flex-col gap-4 lg:h-[calc(100vh-8rem)]">
@@ -207,52 +185,12 @@ export default function Chat() {
       </div>
 
       <div className="glass flex min-h-0 flex-1 overflow-hidden rounded-2xl">
-        {/* Conversation list */}
+        {/* Conversation list — only active mentorship/peer relationships */}
         <aside className={`w-full shrink-0 overflow-y-auto border-r border-slate-200/60 dark:border-white/10 sm:w-72 ${activeId ? 'hidden sm:block' : 'block'}`}>
           <div className="border-b border-slate-200/60 p-3 dark:border-white/10">
-            <button
-              onClick={() => setNewChatOpen((v) => !v)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-brand-400/60 px-3 py-2 text-sm font-semibold text-brand-600 transition hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-500/10"
-            >
-              <FiPlus className="h-4 w-4" /> New chat
-            </button>
-            <AnimatePresence>
-              {newChatOpen && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                  <div className="relative mt-3">
-                    <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      value={peopleQuery}
-                      onChange={(e) => setPeopleQuery(e.target.value)}
-                      placeholder="Find mentors or students…"
-                      autoFocus
-                      className="input pl-10"
-                    />
-                  </div>
-                  <div className="mt-2 max-h-52 space-y-1 overflow-y-auto">
-                    {peopleLoading && <p className="px-3 py-2 text-xs text-slate-400">Searching…</p>}
-                    {!peopleLoading && debouncedPeople.trim() && people.length === 0 && (
-                      <p className="px-3 py-2 text-xs text-slate-400">No one found. Try a name or skill.</p>
-                    )}
-                    {people.map((p) => (
-                      <button
-                        key={p.id}
-                        onClick={() => startChat(p)}
-                        className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition hover:bg-slate-100 dark:hover:bg-slate-800"
-                      >
-                        <Avatar src={p.avatar} name={p.name} size="sm" />
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold">{p.name}</div>
-                          <div className="truncate text-xs text-slate-400">
-                            {p.department || ''}{p.department && ' · '}{p.college || ''}
-                          </div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <p className="px-1 text-xs text-slate-400">
+              Conversations appear after a mentorship request is accepted.
+            </p>
           </div>
 
           {loading ? (
@@ -261,18 +199,27 @@ export default function Chat() {
             </div>
           ) : conversations.length === 0 ? (
             <div className="p-4">
-              <EmptyState icon="💬" title="No conversations yet" description="Use “New chat” to message a mentor or student directly." />
+              <EmptyState
+                icon="🤝"
+                title="No conversations yet"
+                description="Chat unlocks when a mentorship request is accepted. Find a mentor to get started."
+                action={<Button size="sm" onClick={() => navigate('/recommendations')}>Find a mentor</Button>}
+              />
             </div>
           ) : (
             conversations.map((c) => {
               const isActive = c.userId === activeId;
+              const online = onlineMap[c.userId] ?? c.online ?? false;
               return (
                 <button
                   key={c.userId}
                   onClick={() => { setActiveId(c.userId); setMessages([]); navigate(`/chat?user=${c.userId}`, { replace: true }); }}
                   className={`flex w-full items-center gap-3 border-b border-slate-200/40 p-4 text-left transition hover:bg-slate-50 dark:border-white/5 dark:hover:bg-slate-800/50 ${isActive ? 'bg-brand-500/5 dark:bg-brand-500/10' : ''}`}
                 >
-                  <Avatar src={c.user?.avatar} name={c.user?.name} size="sm" />
+                  <div className="relative shrink-0">
+                    <Avatar src={c.user?.avatar} name={c.user?.name} size="sm" />
+                    {online && <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-900" />}
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-semibold">{c.user?.name}</span>
@@ -298,17 +245,45 @@ export default function Chat() {
         <main className="relative flex min-w-0 flex-1 flex-col">
           {!activeId ? (
             <div className="flex flex-1 items-center justify-center p-8">
-              <EmptyState icon="🗨️" title="Pick a conversation" description="Choose a chat from the list, or use “New chat” to message anyone." />
+              <EmptyState
+                icon="🗨️"
+                title="Pick a conversation"
+                description="Only accepted mentors and learners appear here."
+              />
+            </div>
+          ) : locked ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-3xl dark:bg-slate-800"><FiLock /></div>
+              <div>
+                <h3 className="font-display text-lg font-bold">Chat is locked</h3>
+                <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">
+                  Chat will become available once your mentorship request is accepted.
+                </p>
+              </div>
+              {activeUser && (
+                <div className="flex items-center gap-2 text-sm text-slate-400">
+                  <Avatar src={activeUser.avatar} name={activeUser.name} size="xs" />
+                  <span className="font-semibold">{activeUser.name}</span>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => navigate('/recommendations')}>Find a mentor</Button>
+                <Button size="sm" variant="ghost" onClick={() => navigate('/sessions')}>View sessions</Button>
+              </div>
             </div>
           ) : (
             <>
               <div className="flex items-center gap-3 border-b border-slate-200/60 px-4 py-3 dark:border-white/10">
                 <button className="sm:hidden" onClick={() => setActiveId(null)}><FiArrowLeft /></button>
-                <Avatar src={activeUser?.avatar || active?.user?.avatar} name={otherName} size="sm" />
+                <div className="relative">
+                  <Avatar src={activeUser?.avatar || active?.user?.avatar} name={otherName} size="sm" />
+                  {otherOnline && <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-slate-900" />}
+                </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-bold">{otherName || 'Loading…'}</div>
                   <div className="text-[11px] text-slate-400">
-                    {activeUser?.department} {activeUser?.year && `· Year ${activeUser.year}`} {activeUser?.college && `· ${activeUser.college}`}
+                    {otherOnline ? <span className="text-emerald-500">Online</span> : 'Offline'}
+                    {activeUser?.department && ` · ${activeUser.department}`}
                   </div>
                 </div>
                 {activeUser?.isTest && <Tag tone="amber">Test account</Tag>}
@@ -325,24 +300,24 @@ export default function Chat() {
                   </div>
                 ) : (
                   messages.map((m, i) => {
-                    const mine = String(m.sender) === String(user.id);
+                    const isMine = String(m.sender) !== String(activeId);
                     const prev = messages[i - 1];
-                    const showAvatar = !mine && String(m.sender) !== String(prev?.sender);
+                    const showAvatar = isMine && String(m.sender) !== String(prev?.sender);
                     return (
                       <motion.div
                         key={m._id || `${m.sender}-${m.createdAt}`}
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className={`flex items-end gap-2 ${mine ? 'justify-end' : 'justify-start'}`}
+                        className={`flex items-end gap-2 ${isMine ? 'justify-end' : 'justify-start'}`}
                       >
-                        {!mine && <Avatar src={activeUser?.avatar || active?.user?.avatar} name={otherName} size="xs" className={showAvatar ? '' : 'opacity-0'} />}
-                        <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${mine
+                        {!isMine && <Avatar src={activeUser?.avatar || active?.user?.avatar} name={otherName} size="xs" className={showAvatar ? '' : 'opacity-0'} />}
+                        <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${isMine
                           ? 'rounded-br-md bg-gradient-to-r from-brand-600 to-brand-500 text-white'
                           : 'rounded-bl-md bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100'}`}>
                           {m.message}
-                          <div className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${mine ? 'text-white/70' : 'text-slate-400'}`}>
+                          <div className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${isMine ? 'text-white/70' : 'text-slate-400'}`}>
                             {timeAgo(m.createdAt)}
-                            {mine && (m.read ? <FiCheckSquare className="h-3 w-3" /> : <FiCheck className="h-3 w-3" />)}
+                            {isMine && (m.read ? <FiCheckSquare className="h-3 w-3" /> : <FiCheck className="h-3 w-3" />)}
                           </div>
                         </div>
                       </motion.div>

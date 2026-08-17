@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import {
-  FiGrid, FiSearch, FiZap, FiMessageSquare, FiCalendar,
+  FiGrid, FiSearch, FiZap, FiMessageSquare, FiCalendar, FiClock, FiUsers,
   FiAward, FiFileText, FiBell, FiUser, FiSettings, FiLogOut, FiMenu, FiX, FiMoon, FiSun, FiShield,
 } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -14,7 +14,9 @@ const NAV_MAIN = [
   { to: '/discover', label: 'Discover', icon: FiSearch },
   { to: '/recommendations', label: 'Recommendations', icon: FiZap },
   { to: '/chat', label: 'Chat', icon: FiMessageSquare },
-  { to: '/sessions', label: 'Sessions', icon: FiCalendar },
+  { to: '/sessions', label: 'Sessions', icon: FiClock },
+  { to: '/calendar', label: 'Calendar', icon: FiCalendar },
+  { to: '/mentorships', label: 'Mentorships', icon: FiUsers },
   { to: '/roadmap', label: 'AI Roadmap', icon: FiFileText },
   { to: '/leaderboard', label: 'Leaderboard', icon: FiAward },
 ];

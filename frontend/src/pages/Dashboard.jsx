@@ -101,6 +101,37 @@ export default function Dashboard() {
             </div>
           </Card>
 
+          {/* Mentoring progress */}
+          <Card>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="font-display font-bold">Mentoring progress</h2>
+              <Link to="/sessions" className="text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300">View sessions</Link>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-xl bg-brand-500/10 p-3 text-center">
+                <div className="font-display text-xl font-extrabold text-brand-600 dark:text-brand-300">{s.sessionsCompleted || 0}</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">Sessions done</div>
+              </div>
+              <div className="rounded-xl bg-emerald-500/10 p-3 text-center">
+                <div className="font-display text-xl font-extrabold text-emerald-600">{s.hoursLearned || 0}h</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">Learning</div>
+              </div>
+              <div className="rounded-xl bg-purple-500/10 p-3 text-center">
+                <div className="font-display text-xl font-extrabold text-purple-600">{s.hoursTaught || 0}h</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">Teaching</div>
+              </div>
+              <div className="rounded-xl bg-accent/10 p-3 text-center">
+                <div className="font-display text-xl font-extrabold text-amber-600">{(s.learningStreak || 0) + (s.teachingStreak || 0)}🔥</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">Day streak</div>
+              </div>
+            </div>
+            {s.learnedSkills?.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {s.learnedSkills.slice(0, 6).map((sk) => <Tag key={sk._id || sk.name} tone="green" icon="✓">{sk.name || sk}</Tag>)}
+              </div>
+            )}
+          </Card>
+
           {/* Skills */}
           <Card>
             <div className="mb-4 flex items-center justify-between">
@@ -168,6 +199,9 @@ export default function Dashboard() {
           <Card>
             <h2 className="mb-3 font-display font-bold">Quick actions</h2>
             <div className="space-y-2">
+              <Link to="/calendar" className="btn-secondary w-full">🗓️ Session calendar</Link>
+              <Link to="/mentors" className="btn-secondary w-full">🤝 My mentors</Link>
+              <Link to="/learners" className="btn-secondary w-full">🧑‍🏫 My learners</Link>
               <Link to="/roadmap" className="btn-secondary w-full">🗺️ Generate a roadmap</Link>
               <Link to="/leaderboard" className="btn-secondary w-full">🏆 View leaderboard</Link>
               <Link to="/certificates" className="btn-secondary w-full">📜 My certificates</Link>

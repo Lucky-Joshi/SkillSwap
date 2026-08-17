@@ -20,6 +20,8 @@ const Recommendations = lazy(() => import('./pages/Recommendations'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Sessions = lazy(() => import('./pages/Sessions'));
+const Calendar = lazy(() => import('./pages/Calendar'));
+const Mentorships = lazy(() => import('./pages/Mentorships'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const Leaderboard = lazy(() => import('./pages/Leaderboard'));
 const Certificates = lazy(() => import('./pages/Certificates'));
@@ -68,6 +70,10 @@ export default function App() {
           <Route path="/recommendations" element={<Protected><Recommendations /></Protected>} />
           <Route path="/chat" element={<Protected><Chat /></Protected>} />
           <Route path="/sessions" element={<Protected><Sessions /></Protected>} />
+          <Route path="/calendar" element={<Protected><Calendar /></Protected>} />
+          <Route path="/mentorships" element={<Protected><Mentorships /></Protected>} />
+          <Route path="/mentors" element={<Protected><Mentorships initialRole="learner" /></Protected>} />
+          <Route path="/learners" element={<Protected><Mentorships initialRole="mentor" /></Protected>} />
           <Route path="/roadmap" element={<Protected><Roadmap /></Protected>} />
           <Route path="/notifications" element={<Protected><Notifications /></Protected>} />
           <Route path="/leaderboard" element={<Protected><Leaderboard /></Protected>} />

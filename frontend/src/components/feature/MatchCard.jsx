@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { FiUser, FiMail, FiCheck, FiMessageSquare } from 'react-icons/fi';
+import { FiMail } from 'react-icons/fi';
 import Avatar from '../ui/Avatar';
 import RatingStars from '../ui/RatingStars';
 import ScoreRing from '../ui/ScoreRing';
@@ -10,7 +9,6 @@ import { useAuth } from '../../context/AuthContext';
 
 export default function MatchCard({ person, mode = 'mentors', onRequest, requesting }) {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const isMe = user?.id === person.id;
   const teach = person.canTeach || [];
   const learn = person.wantToLearn || [];
@@ -72,9 +70,6 @@ export default function MatchCard({ person, mode = 'mentors', onRequest, request
             <Button className="flex-1" loading={requesting} onClick={() => onRequest(person)}>
               <FiMail className="h-4 w-4" />
               {mode === 'mentors' ? 'Request Mentorship' : 'Offer to Mentor'}
-            </Button>
-            <Button variant="secondary" className="!px-3" onClick={() => navigate(`/chat?user=${person.id}`)} title="Start a chat">
-              <FiMessageSquare className="h-4 w-4" />
             </Button>
           </>
         )}
