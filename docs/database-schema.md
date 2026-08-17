@@ -7,13 +7,14 @@ MongoDB database name: `skillswap` (configurable via `MONGO_URI`).
 ```
 User 1───n UserSkill n───1 Skill
 User 1───n UserBadge n───1 Badge
-User 1───n Match
-User 1───n Session
-User 1───n Message
+User 1───n Connection (userA or userB)
+User 1───n Session (mentorId or learnerId)
+User 1───n Message (sender or receiver)
 User 1───n Review
 User 1───n Notification
-Match 1───n Session (matchId)
+Connection 1───n Session (matchId)
 Session 1───n Review (sessionId)
+Session 1───n Certificate (sessionId)
 ```
 
 ---
@@ -25,21 +26,29 @@ Session 1───n Review (sessionId)
 | name | String (≤80) | required |
 | email | String (unique, lowercase) | required, regex-validated |
 | password | String | bcrypt-hashed (12 rounds), `select:false` |
-| role | enum `student|faculty|alumni|admin` | default `student` |
+| qualification | String | e.g. "B.Tech", "MSc" |
 | college / department | String | |
-| year | enum `1..5|Graduate|''` | |
+| year | enum `1|2|3|4|5|Graduate|''` | |
 | bio | String (≤500) | |
 | avatar | String | path/URL to uploaded file |
 | github / linkedin / portfolio | String | URL-validated |
 | projects | [{title, description, link}] | subdocument |
 | achievements / certificates | [String] | |
 | availability | enum `weekdays|weekends|evenings|mornings|anytime|''` | |
-| rating | Number | 0–5, aggregated from reviews |
+| rating | Number 0–5 | aggregated from reviews |
 | reviewCount | Number | |
+| trustScore | Number 0–100 | computed by trustService |
 | points | Number | badge + activity points |
+| sessionsCompleted | Number | |
+| hoursLearned / hoursTaught | Number | |
+| learningStreak / teachingStreak | Number | consecutive days |
+| learnedSkills | [String] | skills learned via sessions |
+| role | enum `student|faculty|alumni|admin` | default `student` |
 | isVerified | Boolean | |
+| isTest / isDemo | Boolean | test/demo account flags |
+| lastActiveAt / lastSessionDate | Date | |
 | verificationToken / resetToken / resetTokenExpiry | String / Date | `select:false` |
-| lastActiveAt | Date | |
+| notificationPreferences | {email, push, sessionReminders} | subdocument |
 
 Hooks: `pre('save')` hashes password when modified. `comparePassword(candidate)` helper.
 
@@ -50,10 +59,11 @@ Hooks: `pre('save')` hashes password when modified. `comparePassword(candidate)`
 | Field | Type | Notes |
 |-------|------|-------|
 | name | String (unique, ≤60) | required |
-| aliases | [String] | used for fuzzy lookup (e.g. `ReactJS`) |
+| aliases | [String] | fuzzy lookup (e.g. `ReactJS`) |
 | category | enum `programming|frontend|backend|database|data-science|ai-ml|cloud-devops|design|soft-skills|languages|business|other` | |
 | difficulty | enum `beginner|intermediate|advanced` | |
-| icon | String | |
+| icon | String | emoji |
+| description | String | |
 
 Indexed with a **text index** on `name` + `aliases`.
 
@@ -70,51 +80,82 @@ Indexed with a **text index** on `name` + `aliases`.
 
 Unique index `{userId, skillId}` — a user can have each skill once.
 
-## Matches
+## Connections (replaces Match)
+
+The core relationship entity. Supports both directional mentorships and mutual peer learning.
 
 | Field | Type | Notes |
 |-------|------|-------|
-| mentorId | ObjectId → User | required, indexed |
-| learnerId | ObjectId → User | required, indexed |
+| userA | ObjectId → User | required, indexed |
+| userB | ObjectId → User | required, indexed |
+| type | enum `mentorship\|peer` | default `mentorship` |
 | compatibilityScore | Number 0–100 | from recommendation engine |
 | skills | [{skillId, name}] | matched skill context |
-| status | enum `pending|accepted|rejected|completed` | |
-| requestedBy | enum `mentor|learner` | required |
-| respondedAt | Date | |
+| skillAteaches | String | what userA teaches (peer mode) |
+| skillBteaches | String | what userB teaches (peer mode) |
+| status | enum `pending\|accepted\|rejected\|cancelled` | |
+| requestedBy | ObjectId → User | who initiated the request |
+| active | Boolean | true when accepted, indexed |
+| createdAt | Date | auto |
+| respondedAt | Date | when accepted/rejected |
+| acceptedAt | Date | when accepted |
 
-**Unique compound index `{mentorId, learnerId}`** — duplicate requests are rejected.
+**Unique compound index `{userA, userB}`** — one connection per pair.
+
+### Connection types
+
+| Type | userA | userB | Semantics |
+|------|-------|-------|-----------|
+| `mentorship` | mentor | learner | Directional: one teaches, one learns |
+| `peer` | requester | target | Mutual: both teach each other different skills |
+
+Chat and sessions are only unlocked when `status === 'accepted'` AND `active === true`.
 
 ## Sessions
 
 | Field | Type | Notes |
 |-------|------|-------|
 | mentorId / learnerId | ObjectId → User | required, indexed |
-| matchId | ObjectId → Match | optional |
+| matchId | ObjectId → Connection | links back to the Connection |
 | topic | String (≤120) | required |
+| description | String (≤1000) | |
 | notes | String (≤1000) | |
 | date | Date | required |
+| startTime | String "HH:MM" | default "10:00" |
 | duration | Number 15–240 min | default 60 |
-| link | String | meeting link |
-| status | enum `scheduled|completed|cancelled` | |
-| completedAt | Date | set when completed |
+| meetingMode | enum `online\|offline` | |
+| meetingType | enum `googleMeet\|zoom\|teams\|custom` | for online sessions |
+| meetingLink / link | String | meeting URL |
+| locationType | enum `campus\|classroom\|library\|lab\|custom` | for offline sessions |
+| location | String | physical location |
+| status | enum `pending\|confirmed\|completed\|cancelled` | |
+| rating | Number 1–5 | set on completion |
+| feedback | String | set on completion |
+| recommendAnother | Boolean | |
+| confirmedAt / completedAt / cancelledAt | Date | lifecycle timestamps |
+| cancelledBy | ObjectId → User | who cancelled |
+
+Indexes: `{mentorId, learnerId}`, `{matchId}`, `{status}`.
 
 ## Messages
 
 | Field | Type | Notes |
 |-------|------|-------|
 | sender / receiver | ObjectId → User | required, indexed |
-| matchId | ObjectId → Match | optional |
+| conversationId | String | deterministic sorted pair key |
+| matchId | ObjectId → Connection | optional, links to connection |
 | message | String (≤2000) | required |
-| read | Boolean | |
+| read | Boolean | default false |
 | readAt | Date | |
 
-Indexes: `{sender, receiver, createdAt}` and `{matchId, createdAt}`.
+Indexes: `{sender, receiver, createdAt}`, `{matchId, createdAt}`.
 
 ## Reviews
 
 | Field | Type | Notes |
 |-------|------|-------|
-| mentor / learner | ObjectId → User | required, indexed |
+| mentor | ObjectId → User | required, indexed |
+| learner | ObjectId → User | required, indexed |
 | sessionId | ObjectId → Session | optional |
 | rating | Number 1–5 | required |
 | feedback | String (≤1000) | |
@@ -126,16 +167,56 @@ Unique (sparse) index `{mentor, learner, sessionId}` — one review per session 
 | Field | Type | Notes |
 |-------|------|-------|
 | userId | ObjectId → User | required, indexed |
-| type | enum `match|message|session|review|badge|system` | |
-| title / message | String | |
-| read / readAt | Boolean / Date | |
-| data | Mixed | arbitrary payload (e.g. senderId, sessionId) |
+| type | enum `match\|mentorship\|message\|session\|reminder\|review\|badge\|system` | |
+| title | String | required |
+| message | String | |
+| read | Boolean | default false |
+| readAt | Date | |
+| data | Mixed | schemaless payload (e.g. `{matchId}`, `{sessionId}`, `{senderId}`, `{badgeId}`) |
 
 ## Badges & UserBadges
 
 `Badge`: `name` (unique), `description`, `icon`, `points`, `criteria`, `autoGrant`.
 
 `UserBadge`: `userId`, `badgeId`, `earnedAt`, `source` — **unique `{userId, badgeId}`**.
+
+## Institutions
+
+| Field | Type | Notes |
+|-------|------|-------|
+| name | String (unique) | required |
+| domain | String | email domain |
+| logo | String | URL |
+| verified | Boolean | |
+
+## Certificates
+
+| Field | Type | Notes |
+|-------|------|-------|
+| userId | ObjectId → User | required |
+| sessionId | ObjectId → Session | required |
+| certificateId | String | unique, format `SS-XXXXXX` |
+| issuedAt | Date | |
+
+---
+
+## Trust Score Breakdown
+
+Computed by `trustService.js` and stored on the User document.
+
+| Component | Points |
+|-----------|--------|
+| Verified email | +30 |
+| Complete academic details (institution + qualification + department + year) | +10 |
+| Bio | +10 |
+| Avatar | +5 |
+| Linked socials / portfolio | +5 |
+| Skills (3 pts each, capped) | +15 |
+| Received review | +10 |
+| Completed session | +10 |
+| Accepted connection | +5 |
+| Earned badge | +5 |
+| **Total** | **100 max** |
 
 ---
 
@@ -145,5 +226,7 @@ Unique (sparse) index `{mentor, learner, sessionId}` — one review per session 
 - Passwords and verification/reset tokens are never returned by the API
   (`select:false` + removed by `userService.publicUser`).
 - The seed script (`backend/scripts/seed.js`) **clears all collections** and re-seeds
-  69 skills, 9 badges, 11 demo users, 5 accepted matches, plus messages, sessions,
-  reviews and notifications.
+  60+ skills, 8 badges, 10 institutions, admin + demo accounts, 10 demo students,
+  5 accepted connections, messages, sessions, reviews and notifications.
+- Session `mentorId`/`learnerId` are always set (even for peer connections) to
+  maintain query compatibility. The Connection `type` field determines semantics.

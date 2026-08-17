@@ -20,10 +20,9 @@
 
 ## Email verification & password reset
 
-- New accounts get a `verificationToken`; `/auth/verify-email?token=` flips
-  `isVerified` to true.
+- New accounts get a 6-digit verification code; `/auth/verify-email` validates it.
 - `forgot-password` issues a short-lived `resetToken` + `resetTokenExpiry`;
-  `reset-password` validates the token and expiry.
+  `reset-password/:token` validates the token and expiry.
 - Demo mode (`DEMO_MODE=true`) auto-verifies on register and the mailer is a
   **console logger** — never wire a real SMTP key into a demo `.env`.
 
@@ -31,7 +30,7 @@
 
 - **express-validator** chains on every mutating route (email format, name length,
   password min 8, Mongo ObjectId format, rating 1–5, ISO dates, URL format for
-  social links, enum membership for status/year/availability/category).
+  social links, enum membership for status/year/availability/category/type).
 - A shared `validate` middleware returns a `400` with the first field error before
   the controller runs.
 
@@ -48,6 +47,9 @@ A rate limiter (`express-rate-limit`) is applied to the API, with stricter limit
 on auth endpoints (login/register/forgot-password) to slow credential-stuffing and
 spam.
 
+- General API: 500 requests / 15 minutes
+- Auth endpoints: 30 requests / 15 minutes
+
 ## CORS
 
 CORS is restricted to the allowlist in `app.js` (frontend origin, default
@@ -60,8 +62,24 @@ CORS is restricted to the allowlist in `app.js` (frontend origin, default
   - Sessions: only a participant can update/complete a session (`403` otherwise).
   - Skills: only your own `UserSkill` rows can be modified/deleted.
   - Notifications/reviews/certificates are scoped to the authenticated user.
-- Match creation is **unique per pair** (`{mentorId, learnerId}` compound index),
+- Connection creation is **unique per pair** (`{userA, userB}` compound index),
   so duplicate/unsolicited repeated requests are rejected.
+- Chat and session creation require an **active connection** (`assertCanInteract`).
+  Without an accepted connection, returns 403.
+- Role-based access via `restrictTo(...roles)` for admin-only routes.
+
+## Connection access control
+
+The `mentorshipService` enforces a strict gate:
+
+1. `findRelationship(a, b)` — finds an accepted + active Connection between two users
+2. `canInteract(a, b)` — boolean check
+3. `assertCanInteract(a, b)` — throws 403 if no valid connection exists
+
+This is used by:
+- `chatController` — message sending and conversation listing
+- `sessionController` — session creation
+- `socket/index.js` — realtime message delivery
 
 ## File uploads
 

@@ -2,7 +2,7 @@
 
 SkillSwap is a full-stack, AI-powered peer learning and skill exchange platform for
 colleges. Students create verified profiles, list skills they know and want to learn,
-get AI-generated mentor/learner recommendations, exchange learning requests, chat in
+get AI-generated mentor/learner/peer recommendations, exchange learning requests, chat in
 real time, schedule sessions, and earn badges & certificates.
 
 > LinkedIn for college skills · GitHub for student expertise · AI-powered peer mentoring.
@@ -145,6 +145,19 @@ Open http://localhost:5173. A demo account is seeded automatically
 
 ---
 
+## Connection Model
+
+SkillSwap supports two types of connections between students:
+
+| Type | Description |
+|------|-------------|
+| **Mentorship** | Directional: one student mentors another (e.g., React expert teaches a beginner) |
+| **Peer Learning** | Mutual: two students teach each other different skills (e.g., React ↔ Python) |
+
+Both types unlock private chat and session scheduling.
+
+---
+
 ## Recommendation Formula
 
 ```
@@ -165,8 +178,9 @@ Semantic skill matching understands that `ReactJS`, `React`, `React.js`,
 
 ```
 Landing → Sign Up → Verify College Email → Complete Profile → Select Skills
-→ AI Recommendations → Browse → Send Learning Request → Accepted → Chat
-→ Schedule Session → Complete Session → Rate Each Other → Earn Badge → Leaderboard
+→ AI Recommendations → Browse → Send Learning/Mentorship/Peer Request
+→ Accepted → Chat → Schedule Session → Complete Session → Rate Each Other
+→ Earn Badge → Leaderboard
 ```
 
 ---
