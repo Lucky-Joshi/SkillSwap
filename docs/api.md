@@ -295,19 +295,21 @@ handled the request or the heuristic fallback did.
 
 ## Socket.IO events
 
-Connect: `io('http://localhost:5000', { auth: { token: JWT } })`. Each socket joins the room `user:<id>`.
+Connect: `io('http://localhost:5000', { auth: { token: JWT } })`. Each socket joins the room `user:<id>`. The connection handler lives in `backend/socket/index.js`; the client lives in `context/SocketContext.jsx` (connection lifecycle) and `pages/Chat.jsx` (chat events).
 
 | Event | Direction | Payload | Description |
 |-------|-----------|---------|-------------|
-| `connection` | client → server | JWT via handshake auth | Joins user room, marks online |
+| `connection` | client → server | JWT via handshake auth | Joins user room, emits `user:online` broadcast |
+| `user:online` | server → client (broadcast) | — | Notifies all other connected clients the user is online |
+| `user:offline` | server → client (broadcast) | — | Notifies all other connected clients the user went offline |
 | `message:send` | client → server | `{ receiver, message }` | Persist + deliver message |
-| `message:received` | server → client | full message doc | Delivered to recipient's room |
-| `message:sent` | server → client | full message doc | Echo to sender (other tabs) |
-| `messages:read` | client → server | `{ messageId }` | Mark message as read |
-| `messages:read-confirmed` | server → client | `{ by }` | Notify sender of read |
-| `messages:typing` | client → server | `{ receiverId }` | Typing indicator |
-| `messages:stop-typing` | client → server | `{ receiverId }` | Stop typing indicator |
-| `typing:start` | server → client | `{ userId }` | Broadcast typing to recipient |
-| `typing:stop` | server → client | `{ userId }` | Broadcast stop typing |
+| `message:new` | server → client | full message doc | Delivered to recipient's room |
+| `message:sent` | server → client | full message doc | Echo to sender's own room (other tabs) |
+| `messages:read` | client → server | `{ from }` | Mark all messages from that sender as read |
+| `messages:read-confirmed` | server → client | `{ by }` | Notify sender their messages were read |
+| `typing` | client → server | `{ receiverId }` | Typing indicator (server relays to receiver) |
+| `typing` | server → client | `{ userId }` | Relayed typing indicator from the sender |
+| `typing:stop` | client → server | `{ receiverId }` | Stop typing indicator (server relays) |
+| `typing:stop` | server → client | `{ userId }` | Relayed stop typing indicator |
 | `notification:new` | server → client | notification doc | Real-time notification push |
-| `disconnect` | client → server | — | Marks user offline |
+| `disconnect` | client → server | — | Emits `user:offline` broadcast, marks user offline |

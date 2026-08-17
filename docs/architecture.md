@@ -5,20 +5,69 @@
 SkillSwap is a three-tier, full-stack platform for peer-to-peer skill exchange:
 
 ```
-┌────────────────────────────┐
-│   React + Vite Frontend    │   Port 5173
-│  (SPA, lazy-loaded routes) │
-└──────────┬─────────────────┘
-           │ Axios (REST) / Socket.IO (realtime)
-┌──────────▼─────────────────┐
-│   Node.js + Express API    │   Port 5000
-│  (JWT auth, Socket.IO)     │
-└──────────┬──────────┬──────┘
-           │          │
-  ┌────────▼──┐  ┌────▼────────────┐
-  │  MongoDB  │  │  FastAPI AI     │   Port 8000
-  │ (Mongoose)│  │  Service        │
-  └───────────┘  └─────────────────┘
+                        ┌─────────────────────────────────┐
+                        │        React Frontend            │
+                        │    (Vite · Tailwind · Framer)    │
+                        │                                  │
+                        │  Pages  ─  Components  ─  Hooks  │
+                        │         Socket.IO Client         │
+                        └────────────┬────────────────────┘
+                                     │
+                             HTTP + WebSocket
+                                     │
+┌────────────────────────────────────┼──────────────────────────────────────┐
+│                        Node + Express Backend                             │
+│                                                                           │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────┐  ┌───────────────────────┐ │
+│  │  Auth     │  │  Upload  │  │  Validation  │  │  Error Handler        │ │
+│  │  (JWT)    │  │ (Multer) │  │ (Validator)  │  │  (AppError + async)   │ │
+│  └──────────┘  └──────────┘  └──────────────┘  └───────────────────────┘ │
+│                                                                           │
+│  Controllers                                                              │
+│  ┌───────────┐ ┌─────────────┐ ┌──────────┐ ┌────────────┐ ┌───────────┐ │
+│  │ match     │ │ session     │ │ chat     │ │ dashboard  │ │ user      │ │
+│  │(connect)  │ │(schedule)   │ │ (msg)    │ │  (stats)   │ │(profile)  │ │
+│  └───────────┘ └─────────────┘ └──────────┘ └────────────┘ └───────────┘ │
+│                                                                           │
+│  Models                                                                   │
+│  ┌───────────┐ ┌─────────────┐ ┌──────────┐ ┌───────────┐ ┌───────────┐  │
+│  │ User      │ │ Connection  │ │ Session  │ │ Message   │ │ Review    │  │
+│  │ Skill     │ │ (peer +     │ │          │ │           │ │ Badge     │  │
+│  │ UserSkill │ │  mentor)    │ │          │ │           │ │ Certificate│ │
+│  └───────────┘ └─────────────┘ └──────────┘ └───────────┘ └───────────┘  │
+│                                                                           │
+│  Services                                                                 │
+│  ┌───────────────┐ ┌────────────┐ ┌───────────┐ ┌──────────────────────┐ │
+│  │ mentorship    │ │ session    │ │ badge     │ │ trust                │ │
+│  │ (authz gate)  │ │(lifecycle) │ │(auto-grant│ │ (score)              │ │
+│  └───────────────┘ └────────────┘ └───────────┘ └──────────────────────┘ │
+│                                                                           │
+│  ┌──────────────┐ ┌─────────────┐ ┌──────────────────────────────────┐   │
+│  │ Socket.IO    │ │ notification│ │ recommendation                   │   │
+│  │ (realtime)   │ │ (in-app)    │ │ (compatibility scoring)          │   │
+│  └──────────────┘ └─────────────┘ └──────────────────────────────────┘   │
+└───────────────────────────────────┬───────────────────────────────────────┘
+                                    │
+                               ┌────┴────┐
+                               │ MongoDB │
+                               │    7    │
+                               └─────────┘
+
+                        ┌──────────────────────────┐
+                        │    FastAPI AI Service     │
+                        │        (port 8000)        │
+                        │                           │
+                        │  /recommendations  (rank) │
+                        │  /roadmap      (learn path│
+                        │  /skills/graph   (graph)  │
+                        │  /skills/related (suggest)│
+                        │  /skills/similarity (0–1) │
+                        │  /next-steps   (post sess)│
+                        │  /resume/parse  (skills)  │
+                        │                           │
+                        │  TF-IDF · SBERT · spaCy   │
+                        │  NetworkX skill graph      │
+                        └──────────────────────────┘
 ```
 
 ### Component responsibilities
@@ -34,7 +83,7 @@ SkillSwap is a three-tier, full-stack platform for peer-to-peer skill exchange:
 
 ## Frontend architecture
 
-- **Build**: Vite + React 18, Tailwind CSS (dark mode via `class`), React Router v6, Framer Motion.
+- **Build**: Vite 5 + React 18, Tailwind CSS v3, React Router v6, Framer Motion.
 - **Routing** (`src/App.jsx`): all page modules are `React.lazy()`-loaded. Public pages (`/login`, `/register`, …) are wrapped in `PublicOnly`; authed pages are wrapped in `Protected` + `MainLayout`.
 - **State**:
   - `AuthContext` — user + JWT (localStorage key `skillswap_token`), login/logout/register/update.
@@ -42,7 +91,7 @@ SkillSwap is a three-tier, full-stack platform for peer-to-peer skill exchange:
   - `SocketContext` — Socket.IO connection, authenticated with the JWT.
   - Local component state via hooks for page data; `react-hook-form` for forms.
 - **Data access** (`src/services/`): axios instance adds `Authorization` header; response interceptor handles 401 (clears session) and normalizes errors. `unwrap()` returns `res.data`.
-- **Realtime** (`src/services/socket.js`): joins `user:<id>` room; emits `message:send`, `messages:read`, `typing`; listens for `message:new`, `message:sent`, `messages:read-confirmed`, `typing`, `notification:new`.
+- **Realtime** (`context/SocketContext.jsx` + `pages/Chat.jsx`): Socket.IO client authenticated via JWT in handshake; each socket joins `user:<id>` room; unauthenticated connections rejected.
 - **Directory**: `components/ui` (presentational), `components/feature` (domain composites), `pages`, `layouts`, `hooks`, `context`, `services`, `utils`.
 
 ### Key pages
