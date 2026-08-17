@@ -11,9 +11,9 @@ const { isUserOnline } = require('../socket');
 const getConversations = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
-  // Accepted + active relationships only. Chat is never global.
-  const relationships = await require('../models/Match').find({
-    $or: [{ mentorId: userId }, { learnerId: userId }],
+  // Accepted + active connections only. Chat is never global.
+  const relationships = await require('../models/Connection').find({
+    $or: [{ userA: userId }, { userB: userId }],
     status: 'accepted',
     active: true,
   });
@@ -21,7 +21,7 @@ const getConversations = asyncHandler(async (req, res) => {
   const allowedIds = new Set();
   const relationByOther = new Map();
   for (const rel of relationships) {
-    const otherId = String(rel.mentorId) === String(userId) ? String(rel.learnerId) : String(rel.mentorId);
+    const otherId = String(rel.userA) === String(userId) ? String(rel.userB) : String(rel.userA);
     allowedIds.add(otherId);
     relationByOther.set(otherId, rel);
   }
@@ -59,7 +59,8 @@ const getConversations = asyncHandler(async (req, res) => {
       unread,
       relationship: {
         id: rel._id,
-        role: String(rel.mentorId) === String(userId) ? 'mentor' : 'learner',
+        type: rel.type,
+        role: rel.type === 'peer' ? 'peer' : (String(rel.userA) === String(userId) ? 'mentor' : 'learner'),
         acceptedAt: rel.acceptedAt,
       },
     });

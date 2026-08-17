@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const UserSkill = require('../models/UserSkill');
-const Match = require('../models/Match');
+const Connection = require('../models/Connection');
 const Session = require('../models/Session');
 const Message = require('../models/Message');
 const Review = require('../models/Review');
@@ -13,7 +13,7 @@ const deleteUserData = async (userId) => {
   const id = String(userId);
   await Promise.all([
     UserSkill.deleteMany({ userId: id }),
-    Match.deleteMany({ $or: [{ mentorId: id }, { learnerId: id }] }),
+    Connection.deleteMany({ $or: [{ userA: id }, { userB: id }] }),
     Session.deleteMany({ $or: [{ mentorId: id }, { learnerId: id }] }),
     Message.deleteMany({ $or: [{ sender: id }, { receiver: id }] }),
     Review.deleteMany({ $or: [{ mentor: id }, { learner: id }] }),

@@ -108,6 +108,7 @@ function CompleteModal({ session, onClose, onDone }) {
   const [recommend, setRecommend] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [nextSteps, setNextSteps] = useState([]);
+  const [progress, setProgress] = useState(null);
 
   const submit = async () => {
     if (!rating) {
@@ -118,12 +119,8 @@ function CompleteModal({ session, onClose, onDone }) {
     try {
       const res = await completeSession(session._id, { rating, feedback, recommendAnother: recommend });
       toast.success('Session completed! 🎉');
-      try {
-        const ai = await getNextSteps(session.topic);
-        setNextSteps(ai.next || []);
-      } catch {
-        setNextSteps([]);
-      }
+      setNextSteps(res.nextSteps || []);
+      setProgress(res.progress || null);
       onDone?.(res.session);
       if (res.progress) toast(`Progress updated: ${res.progress.hoursLearned || 0}h learned`, { icon: '📈' });
     } catch (err) {
@@ -149,7 +146,32 @@ function CompleteModal({ session, onClose, onDone }) {
               ))}
             </div>
           </div>
-          <Button className="w-full" onClick={onClose}>Done</Button>
+
+          {progress && (
+            <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/60">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Your progress</div>
+              <div className="mt-2 grid grid-cols-2 gap-3 text-center">
+                <div className="rounded-lg bg-emerald-500/10 p-2">
+                  <div className="text-lg font-extrabold text-emerald-600">{progress.hoursLearned || 0}h</div>
+                  <div className="text-[10px] text-slate-500">Hours learned</div>
+                </div>
+                <div className="rounded-lg bg-purple-500/10 p-2">
+                  <div className="text-lg font-extrabold text-purple-600">{progress.hoursTaught || 0}h</div>
+                  <div className="text-[10px] text-slate-500">Hours taught</div>
+                </div>
+              </div>
+              {progress.learningStreak > 0 && (
+                <div className="mt-2 text-center text-sm text-slate-500">
+                  🔥 {progress.learningStreak} day learning streak
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <Button className="flex-1" onClick={onClose}>Done</Button>
+            <Link to="/roadmap" className="btn-secondary flex-1 justify-center">View roadmap</Link>
+          </div>
         </div>
       </Modal>
     );

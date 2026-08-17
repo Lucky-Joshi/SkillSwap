@@ -9,7 +9,7 @@ const sessionSchema = new mongoose.Schema(
   {
     mentorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     learnerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    matchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Match', index: true },
+    matchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Connection', index: true },
     topic: { type: String, required: [true, 'Topic is required'], trim: true, maxlength: 120 },
     description: { type: String, default: '', trim: true, maxlength: 1000 },
     notes: { type: String, default: '', maxlength: 1000 },

@@ -1,5 +1,5 @@
 const Session = require('../models/Session');
-const Match = require('../models/Match');
+const Connection = require('../models/Connection');
 const User = require('../models/User');
 const Review = require('../models/Review');
 const AppError = require('../utils/AppError');
@@ -75,7 +75,9 @@ const createSession = asyncHandler(async (req, res, next) => {
   const relationship = await assertCanInteract(req.user._id, otherUserId);
   validateMeeting(meetingMode, { meetingType, meetingLink, locationType, location });
 
-  const isMentor = String(relationship.mentorId) === String(req.user._id);
+  const isMentor = relationship.type === 'peer'
+    ? String(relationship.userA) === String(req.user._id)
+    : String(relationship.userA) === String(req.user._id);
   const session = await Session.create({
     mentorId: isMentor ? req.user._id : otherUserId,
     learnerId: isMentor ? otherUserId : req.user._id,
@@ -276,6 +278,15 @@ const confirmSession = asyncHandler(async (req, res, next) => {
     data: { sessionId: session._id },
   });
 
+  // Also notify the confirmer
+  await notify({
+    userId: req.user._id,
+    type: 'session',
+    title: 'Session confirmed ✅',
+    message: `You confirmed "${session.topic}" with ${otherId === session.mentorId ? 'your mentor' : 'your learner'}.`,
+    data: { sessionId: session._id },
+  });
+
   res.json({ success: true, session: await sessionLabel(session, req.user._id) });
 });
 
@@ -354,12 +365,31 @@ const completeSession = asyncHandler(async (req, res, next) => {
   queueTrustRefresh(session.mentorId);
   queueTrustRefresh(session.learnerId);
 
+  // Generate AI next-steps suggestion
+  let nextSteps = [];
+  try {
+    const { suggestNext } = require('../services/nextStepsService');
+    const result = suggestNext(session.topic, learner?.careerGoal || '');
+    nextSteps = result.next || [];
+  } catch {
+    nextSteps = [];
+  }
+
   const otherId = String(session.mentorId) === String(req.user._id) ? session.learnerId : session.mentorId;
   await notify({
     userId: otherId,
     type: 'session',
     title: 'Session completed 🎉',
     message: `"${session.topic}" was completed${isLearner && rating ? ` and rated ${rating}/5.` : '.'}`,
+    data: { sessionId: session._id },
+  });
+
+  // Notify the completer too
+  await notify({
+    userId: req.user._id,
+    type: 'session',
+    title: 'Session completed 🎉',
+    message: `You completed "${session.topic}".${isLearner && rating ? ` Rated ${rating}/5.` : ''}`,
     data: { sessionId: session._id },
   });
 
@@ -373,6 +403,7 @@ const completeSession = asyncHandler(async (req, res, next) => {
       learningStreak: learner?.learningStreak,
       teachingStreak: mentor?.teachingStreak,
     },
+    nextSteps,
   });
 });
 

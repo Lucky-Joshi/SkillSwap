@@ -4,7 +4,7 @@ const User = require('../models/User');
 const UserSkill = require('../models/UserSkill');
 const Review = require('../models/Review');
 const Session = require('../models/Session');
-const Match = require('../models/Match');
+const Connection = require('../models/Connection');
 const { notify } = require('./notificationService');
 
 const BADGE_KEYS = {
@@ -44,7 +44,7 @@ const evaluateBadges = async (userId) => {
     UserSkill.countDocuments({ userId }),
     Review.countDocuments({ $or: [{ mentor: userId }, { learner: userId }] }),
     Session.countDocuments({ $or: [{ mentorId: userId }, { learnerId: userId }], status: 'completed' }),
-    Match.countDocuments({ $or: [{ mentorId: userId }, { learnerId: userId }], status: { $ne: 'rejected' } }),
+    Connection.countDocuments({ $or: [{ userA: userId }, { userB: userId }], status: { $ne: 'rejected' } }),
     User.findById(userId),
   ]);
 

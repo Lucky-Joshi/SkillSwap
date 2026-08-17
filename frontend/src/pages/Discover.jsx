@@ -60,7 +60,8 @@ export default function Discover() {
   const handleRequest = async (person) => {
     setRequestingId(person.id);
     try {
-      await requestMatch({ userId: person.id, mode });
+      const type = mode === 'peer' ? 'peer' : 'mentorship';
+      await requestMatch({ userId: person.id, mode, type });
       toast.success(`Request sent to ${person.name.split(' ')[0]}!`);
       setUsers((prev) => prev.filter((u) => u.id !== person.id));
     } catch (err) {
@@ -73,7 +74,8 @@ export default function Discover() {
   const matches = (u) => {
     const teach = u.canTeach || [];
     const learn = u.wantToLearn || [];
-    const pool = mode === 'mentors' ? teach : learn;
+    // For peer mode, show all skills (both teach and learn)
+    const pool = mode === 'peer' ? [...new Set([...teach, ...learn])] : (mode === 'mentors' ? teach : learn);
     return skill ? pool.filter((s) => s.toLowerCase().includes(skill.toLowerCase())) : pool;
   };
 
@@ -87,7 +89,7 @@ export default function Discover() {
           </p>
         </div>
         <Tabs
-          tabs={[{ value: 'mentors', label: 'Looking for mentors' }, { value: 'learners', label: 'Mentor others' }]}
+          tabs={[{ value: 'mentors', label: 'Looking for mentors' }, { value: 'learners', label: 'Mentor others' }, { value: 'peer', label: 'Peer learning' }]}
           active={mode}
           onChange={setMode}
           className="w-full sm:w-auto"

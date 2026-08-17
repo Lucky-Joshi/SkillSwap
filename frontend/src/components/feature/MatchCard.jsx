@@ -69,7 +69,7 @@ export default function MatchCard({ person, mode = 'mentors', onRequest, request
           <>
             <Button className="flex-1" loading={requesting} onClick={() => onRequest(person)}>
               <FiMail className="h-4 w-4" />
-              {mode === 'mentors' ? 'Request Mentorship' : 'Offer to Mentor'}
+              {mode === 'peer' ? 'Request Peer Exchange' : mode === 'mentors' ? 'Request Mentorship' : 'Offer to Mentor'}
             </Button>
           </>
         )}

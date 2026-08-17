@@ -252,18 +252,31 @@ export default function Chat() {
               />
             </div>
           ) : locked ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-3xl dark:bg-slate-800"><FiLock /></div>
+            <div className="flex flex-1 flex-col items-center justify-center gap-5 p-8 text-center">
+              <div className="relative">
+                <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700">
+                  <FiLock className="h-8 w-8 text-slate-400" />
+                </div>
+                {activeUser && (
+                  <div className="absolute -bottom-1 -right-1">
+                    <Avatar src={activeUser.avatar} name={activeUser.name} size="sm" ring />
+                  </div>
+                )}
+              </div>
               <div>
                 <h3 className="font-display text-lg font-bold">Chat is locked</h3>
-                <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">
+                <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-slate-500 dark:text-slate-400">
                   Chat will become available once your mentorship request is accepted.
+                  You need an active mentorship relationship to send messages.
                 </p>
               </div>
               {activeUser && (
-                <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <Avatar src={activeUser.avatar} name={activeUser.name} size="xs" />
-                  <span className="font-semibold">{activeUser.name}</span>
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200/60 px-4 py-3 dark:border-white/10">
+                  <Avatar src={activeUser.avatar} name={activeUser.name} size="sm" />
+                  <div className="text-left">
+                    <div className="text-sm font-semibold">{activeUser.name}</div>
+                    <div className="text-xs text-slate-400">{activeUser.department}{activeUser.department && activeUser.year && ' · '}{activeUser.year && `Year ${activeUser.year}`}</div>
+                  </div>
                 </div>
               )}
               <div className="flex gap-2">

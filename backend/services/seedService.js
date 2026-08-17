@@ -3,7 +3,7 @@ const Badge = require('../models/Badge');
 const Institution = require('../models/Institution');
 const User = require('../models/User');
 const UserSkill = require('../models/UserSkill');
-const Match = require('../models/Match');
+const Connection = require('../models/Connection');
 const Session = require('../models/Session');
 const Message = require('../models/Message');
 const Review = require('../models/Review');
@@ -375,14 +375,15 @@ const resetDemoAccount = async () => {
     const mentor = await User.findOne({ email: mentorEmail });
     const learner = await User.findOne({ email: learnerEmail });
     if (!mentor || !learner) continue;
-    const match = await Match.create({
-      mentorId: mentor._id,
-      learnerId: learner._id,
+    const conn = await Connection.create({
+      userA: mentor._id,
+      userB: learner._id,
+      type: 'mentorship',
       compatibilityScore: 88,
       status: 'accepted',
       active: true,
       acceptedAt: new Date(),
-      requestedBy: 'learner',
+      requestedBy: learner._id,
       respondedAt: new Date(),
     });
     for (let i = 0; i < 3; i++) {
@@ -399,14 +400,14 @@ const resetDemoAccount = async () => {
         ]),
         read: true,
         createdAt: new Date(Date.now() - (3 - i) * 3600 * 1000),
-        matchId: match._id,
+        matchId: conn._id,
       });
     }
     if (mentor.email === 'isha@skillswap.io') {
       await Session.create({
         mentorId: mentor._id,
         learnerId: learner._id,
-        matchId: match._id,
+        matchId: conn._id,
         topic: 'Marketing 101',
         description: 'Introduction to marketing fundamentals.',
         date: new Date(Date.now() + 2 * 24 * 3600 * 1000),

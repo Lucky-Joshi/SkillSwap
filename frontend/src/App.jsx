@@ -71,9 +71,10 @@ export default function App() {
           <Route path="/chat" element={<Protected><Chat /></Protected>} />
           <Route path="/sessions" element={<Protected><Sessions /></Protected>} />
           <Route path="/calendar" element={<Protected><Calendar /></Protected>} />
-          <Route path="/mentorships" element={<Protected><Mentorships /></Protected>} />
-          <Route path="/mentors" element={<Protected><Mentorships initialRole="learner" /></Protected>} />
-          <Route path="/learners" element={<Protected><Mentorships initialRole="mentor" /></Protected>} />
+          <Route path="/connections" element={<Protected><Mentorships /></Protected>} />
+          <Route path="/mentors" element={<Protected><Mentorships initialTab="learner" /></Protected>} />
+          <Route path="/learners" element={<Protected><Mentorships initialTab="mentor" /></Protected>} />
+          <Route path="/peers" element={<Protected><Mentorships initialTab="peer" /></Protected>} />
           <Route path="/roadmap" element={<Protected><Roadmap /></Protected>} />
           <Route path="/notifications" element={<Protected><Notifications /></Protected>} />
           <Route path="/leaderboard" element={<Protected><Leaderboard /></Protected>} />

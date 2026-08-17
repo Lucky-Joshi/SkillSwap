@@ -1,20 +1,23 @@
-const Match = require('../models/Match');
+const Connection = require('../models/Connection');
+const Session = require('../models/Session');
 const AppError = require('../utils/AppError');
+const { effectiveStart } = require('./sessionService');
 
 /**
- * A "mentorship relationship" is an accepted, active Match.
- * Only active relationships unlock sessions and chat.
+ * A "connection" is an accepted, active Connection document.
+ * Type determines semantics: 'mentorship' (directional) or 'peer' (mutual exchange).
+ * Only active connections unlock sessions and chat.
  */
 
 // Deterministic key for a conversation between two users.
 const conversationKey = (a, b) => [String(a), String(b)].sort().join('_');
 
-// Find the accepted + active relationship between two users (either direction).
+// Find the accepted + active connection between two users (either direction).
 const findRelationship = async (a, b) =>
-  Match.findOne({
+  Connection.findOne({
     $or: [
-      { mentorId: a, learnerId: b },
-      { mentorId: b, learnerId: a },
+      { userA: a, userB: b },
+      { userA: b, userB: a },
     ],
     status: 'accepted',
     active: true,
@@ -26,31 +29,80 @@ const canInteract = async (a, b) => {
   return Boolean(await findRelationship(a, b));
 };
 
-// Throw when two users are not in an accepted relationship.
+// Throw when two users are not in an accepted connection.
 const assertCanInteract = async (a, b) => {
   const rel = await findRelationship(a, b);
   if (!rel) {
-    throw new AppError('Chat will become available once your mentorship request is accepted.', 403);
+    throw new AppError('Chat will become available once your connection request is accepted.', 403);
   }
   return rel;
 };
 
-const relationshipLabel = async (match, viewerId) => {
-  const [mentor, learner] = await Promise.all([
-    require('../models/User').findById(match.mentorId),
-    require('../models/User').findById(match.learnerId),
-  ]);
-  const other = String(match.mentorId) === String(viewerId) ? learner : mentor;
-  const isMentor = String(match.mentorId) === String(viewerId);
+// Get stats for a connection between two users.
+const getRelationshipStats = async (userId, partnerId) => {
+  const sessions = await Session.find({
+    $or: [
+      { mentorId: userId, learnerId: partnerId },
+      { mentorId: partnerId, learnerId: userId },
+    ],
+  }).sort({ date: -1 });
+
+  const completed = sessions.filter((s) => s.status === 'completed');
+  const totalMinutes = completed.reduce((sum, s) => sum + (s.duration || 60), 0);
+  const lastSession = completed[0] || null;
+
+  const now = new Date();
+  const upcoming = sessions
+    .filter((s) => s.status === 'confirmed' && new Date(s.date) >= now)
+    .sort((a, b) => new Date(a.date) - new Date(b.date))[0] || null;
+
   return {
-    id: match._id,
-    status: match.status,
-    active: match.active,
-    acceptedAt: match.acceptedAt,
-    compatibilityScore: match.compatibilityScore,
-    requestedBy: match.requestedBy,
-    skills: match.skills,
-    role: isMentor ? 'mentor' : 'learner',
+    totalSessions: sessions.length,
+    completedSessions: completed.length,
+    totalHours: Math.round((totalMinutes / 60) * 10) / 10,
+    lastSessionAt: lastSession?.completedAt || lastSession?.date || null,
+    nextSession: upcoming
+      ? {
+          id: upcoming._id,
+          topic: upcoming.topic,
+          date: upcoming.date,
+          startTime: upcoming.startTime,
+          duration: upcoming.duration,
+          meetingMode: upcoming.meetingMode,
+        }
+      : null,
+  };
+};
+
+const relationshipLabel = async (conn, viewerId, includeStats = false) => {
+  const [userA, userB] = await Promise.all([
+    require('../models/User').findById(conn.userA),
+    require('../models/User').findById(conn.userB),
+  ]);
+  const isA = String(conn.userA) === String(viewerId);
+  const other = isA ? userB : userA;
+
+  // For mentorship: userA = mentor, userB = learner (whoever was assigned as mentor).
+  // For peer: both are equal; role is just 'peer'.
+  let role;
+  if (conn.type === 'peer') {
+    role = 'peer';
+  } else {
+    role = isA ? 'mentor' : 'learner';
+  }
+
+  const label = {
+    id: conn._id,
+    type: conn.type,
+    status: conn.status,
+    active: conn.active,
+    acceptedAt: conn.acceptedAt,
+    compatibilityScore: conn.compatibilityScore,
+    requestedBy: conn.requestedBy,
+    skills: conn.skills,
+    skillAteaches: conn.skillAteaches,
+    skillBteaches: conn.skillBteaches,
+    role,
     otherUser: other
       ? {
           id: other._id,
@@ -64,39 +116,52 @@ const relationshipLabel = async (match, viewerId) => {
         }
       : null,
   };
+
+  if (includeStats && conn.status === 'accepted') {
+    label.stats = await getRelationshipStats(viewerId, other._id);
+  }
+
+  return label;
 };
 
-// List the viewer's active relationships, split by direction.
-const listMentorships = async (userId) => {
-  const matches = await Match.find({
-    $or: [{ mentorId: userId }, { learnerId: userId }],
+// List the viewer's active connections, split by type and direction.
+const listConnections = async (userId) => {
+  const connections = await Connection.find({
+    $or: [{ userA: userId }, { userB: userId }],
     status: 'accepted',
     active: true,
   }).sort({ acceptedAt: -1 });
 
   const mentors = [];
   const learners = [];
-  for (const m of matches) {
-    const label = await relationshipLabel(m, userId);
-    if (label.role === 'learner') mentors.push(label); // my mentor
-    else learners.push(label); // my learner
+  const peers = [];
+
+  for (const conn of connections) {
+    const label = await relationshipLabel(conn, userId, true);
+    if (conn.type === 'peer') {
+      peers.push(label);
+    } else if (label.role === 'learner') {
+      mentors.push(label);
+    } else {
+      learners.push(label);
+    }
   }
-  return { mentors, learners };
+  return { mentors, learners, peers };
 };
 
-// Cancel an active relationship (sets it inactive for both sides).
-const cancelRelationship = async (matchId, userId) => {
-  const match = await Match.findById(matchId);
-  if (!match) throw new AppError('Relationship not found.', 404);
+// Cancel an active connection (sets it inactive for both sides).
+const cancelRelationship = async (connectionId, userId) => {
+  const conn = await Connection.findById(connectionId);
+  if (!conn) throw new AppError('Connection not found.', 404);
   const isParticipant =
-    String(match.mentorId) === String(userId) || String(match.learnerId) === String(userId);
-  if (!isParticipant) throw new AppError('You are not part of this relationship.', 403);
-  if (match.status !== 'accepted') throw new AppError('Only active relationships can be cancelled.', 400);
+    String(conn.userA) === String(userId) || String(conn.userB) === String(userId);
+  if (!isParticipant) throw new AppError('You are not part of this connection.', 403);
+  if (conn.status !== 'accepted') throw new AppError('Only active connections can be cancelled.', 400);
 
-  match.status = 'cancelled';
-  match.active = false;
-  await match.save();
-  return match;
+  conn.status = 'cancelled';
+  conn.active = false;
+  await conn.save();
+  return conn;
 };
 
 module.exports = {
@@ -105,6 +170,8 @@ module.exports = {
   canInteract,
   assertCanInteract,
   relationshipLabel,
-  listMentorships,
+  listConnections,
+  listMentorships: listConnections,
   cancelRelationship,
+  getRelationshipStats,
 };

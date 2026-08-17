@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const UserSkill = require('../models/UserSkill');
-const Match = require('../models/Match');
+const Connection = require('../models/Connection');
 const asyncHandler = require('../utils/asyncHandler');
 const { rankCandidates, buildCards } = require('../services/recommendationService');
 const aiClient = require('../services/aiClient');
@@ -22,15 +22,15 @@ const withSkills = async (users) => {
 };
 
 const existingMatchKeys = async (userId) => {
-  const matches = await Match.find({
-    $or: [{ mentorId: userId }, { learnerId: userId }],
-  }).select('mentorId learnerId status');
+  const connections = await Connection.find({
+    $or: [{ userA: userId }, { userB: userId }],
+  }).select('userA userB status');
   const keySet = new Set();
-  matches.forEach((m) => {
-    keySet.add(`${String(m.mentorId)}_${String(m.learnerId)}`);
-    keySet.add(`${String(m.learnerId)}_${String(m.mentorId)}`);
+  connections.forEach((c) => {
+    keySet.add(`${String(c.userA)}_${String(c.userB)}`);
+    keySet.add(`${String(c.userB)}_${String(c.userA)}`);
   });
-  return { matches, keySet };
+  return { matches: connections, keySet };
 };
 
 // @route  GET /api/recommendations?mode=mentors|learners

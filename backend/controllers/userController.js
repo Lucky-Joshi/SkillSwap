@@ -50,15 +50,18 @@ const getUser = asyncHandler(async (req, res, next) => {
 
   // Relationship context for the viewer (drives profile actions).
   if (String(req.user._id) !== String(user._id)) {
-    const { findRelationship } = require('../services/mentorshipService');
+    const { findRelationship, getRelationshipStats } = require('../services/mentorshipService');
     const rel = await findRelationship(req.user._id, user._id);
     if (rel) {
+      const stats = await getRelationshipStats(req.user._id, user._id);
       profile.relationship = {
         id: rel._id,
+        type: rel.type,
         status: rel.status,
         active: rel.active,
-        role: String(rel.mentorId) === String(req.user._id) ? 'mentor' : 'learner',
+        role: rel.type === 'peer' ? 'peer' : (String(rel.userA) === String(req.user._id) ? 'mentor' : 'learner'),
         acceptedAt: rel.acceptedAt,
+        stats,
       };
     }
   }

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import {
   FiEdit3, FiSave, FiGithub, FiLinkedin, FiGlobe, FiMail, FiMessageSquare,
   FiCalendar, FiUpload, FiAward, FiBookOpen, FiTarget, FiCheckCircle, FiX, FiTrash2,
+  FiClock, FiBarChart2,
 } from 'react-icons/fi';
 import Card from '../components/ui/Card';
 import Avatar from '../components/ui/Avatar';
@@ -200,6 +201,8 @@ export default function Profile() {
 
   const p = profile;
   const profileId = p.id || p._id;
+  const relStats = p.relationship?.stats || {};
+  const hasRelStats = p.relationship?.active && relStats.completedSessions !== undefined;
 
   return (
     <div className="space-y-6">
@@ -310,6 +313,60 @@ export default function Profile() {
             </Button>
             <input ref={resumeRef} type="file" accept=".pdf,.docx,.txt" hidden onChange={handleResume} />
           </div>
+        </Card>
+      )}
+
+      {/* Relationship stats — shown for active mentorship connections */}
+      {!isMe && hasRelStats && (
+        <Card>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-display font-bold">
+              <FiBarChart2 className="text-brand-500" />
+              Your mentorship with {p.name.split(' ')[0]}
+            </h2>
+            <Tag tone="green">Active since {formatDate(relStats.lastSessionAt || p.relationship.acceptedAt)}</Tag>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-xl bg-brand-500/10 p-3 text-center">
+              <div className="font-display text-xl font-extrabold text-brand-600 dark:text-brand-300">{relStats.completedSessions || 0}</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">Sessions done</div>
+            </div>
+            <div className="rounded-xl bg-emerald-500/10 p-3 text-center">
+              <div className="font-display text-xl font-extrabold text-emerald-600">{relStats.totalHours || 0}h</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">Hours together</div>
+            </div>
+            <div className="rounded-xl bg-purple-500/10 p-3 text-center">
+              <div className="font-display text-xl font-extrabold text-purple-600">{relStats.totalSessions || 0}</div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400">Total sessions</div>
+            </div>
+            <div className="rounded-xl bg-accent/10 p-3 text-center">
+              {relStats.nextSession ? (
+                <>
+                  <div className="font-display text-sm font-extrabold text-amber-600">Upcoming</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">{relStats.nextSession.topic}</div>
+                </>
+              ) : (
+                <>
+                  <div className="font-display text-sm font-extrabold text-slate-400">No session</div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">scheduled</div>
+                </>
+              )}
+            </div>
+          </div>
+          {relStats.nextSession && (
+            <div className="mt-3 flex items-center gap-3 rounded-xl border border-brand-200/60 bg-brand-500/5 p-3 dark:border-brand-500/20">
+              <FiCalendar className="text-brand-500" />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold">{relStats.nextSession.topic}</div>
+                <div className="text-xs text-slate-400">
+                  {formatDate(relStats.nextSession.date)} · {relStats.nextSession.startTime} · {relStats.nextSession.duration}min
+                </div>
+              </div>
+              <Tag tone={relStats.nextSession.meetingMode === 'online' ? 'brand' : 'amber'}>
+                {relStats.nextSession.meetingMode === 'online' ? 'Online' : 'Offline'}
+              </Tag>
+            </div>
+          )}
         </Card>
       )}
 

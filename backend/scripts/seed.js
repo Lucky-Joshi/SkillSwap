@@ -5,7 +5,7 @@ const Badge = require('../models/Badge');
 const Institution = require('../models/Institution');
 const User = require('../models/User');
 const UserSkill = require('../models/UserSkill');
-const Match = require('../models/Match');
+const Connection = require('../models/Connection');
 const Session = require('../models/Session');
 const Message = require('../models/Message');
 const Review = require('../models/Review');
@@ -57,7 +57,7 @@ const main = async () => {
   // Full seed (default) clears everything for a known-good state.
   if (!flag('no-clear')) {
     const collections = [
-      Skill, Badge, Institution, User, UserSkill, Match, Session, Message, Review, Notification, UserBadge,
+      Skill, Badge, Institution, User, UserSkill, Connection, Session, Message, Review, Notification, UserBadge,
     ];
     for (const M of collections) await M.deleteMany({});
     log('Cleared collections.');
@@ -128,7 +128,7 @@ const main = async () => {
   const demo = await resetDemoAccount();
   log(`Seeded demo account: ${demo.email} / demo1234`);
 
-  // Accepted matches between demo students (fills Match history + leaderboard realism).
+  // Accepted connections between demo students (fills Connection history + leaderboard realism).
   const pairs = [
     [0, 5], [1, 6], [2, 8], [4, 9], [3, 7],
   ];
@@ -136,14 +136,15 @@ const main = async () => {
     const mentor = demoStudents[mentorIdx];
     const learner = demoStudents[learnerIdx];
     if (!mentor || !learner) continue;
-    const match = await Match.create({
-      mentorId: mentor._id,
-      learnerId: learner._id,
+    const conn = await Connection.create({
+      userA: mentor._id,
+      userB: learner._id,
+      type: 'mentorship',
       compatibilityScore: pick([82, 86, 90, 84, 88]),
       status: 'accepted',
       active: true,
       acceptedAt: new Date(),
-      requestedBy: 'learner',
+      requestedBy: learner._id,
       respondedAt: new Date(),
     });
     for (let i = 0; i < 2; i++) {
@@ -158,11 +159,11 @@ const main = async () => {
         ]),
         read: true,
         createdAt: new Date(Date.now() - (2 - i) * 3600 * 1000),
-        matchId: match._id,
+        matchId: conn._id,
       });
     }
   }
-  log('Seeded 5 accepted demo matches with messages.');
+  log('Seeded 5 accepted demo connections with messages.');
 
   // Honest trust scores for every demo user (recomputed from actual data).
   for (const u of [demo, ...demoStudents]) {

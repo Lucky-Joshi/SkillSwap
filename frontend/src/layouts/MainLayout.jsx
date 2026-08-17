@@ -16,7 +16,7 @@ const NAV_MAIN = [
   { to: '/chat', label: 'Chat', icon: FiMessageSquare },
   { to: '/sessions', label: 'Sessions', icon: FiClock },
   { to: '/calendar', label: 'Calendar', icon: FiCalendar },
-  { to: '/mentorships', label: 'Mentorships', icon: FiUsers },
+  { to: '/connections', label: 'Connections', icon: FiUsers },
   { to: '/roadmap', label: 'AI Roadmap', icon: FiFileText },
   { to: '/leaderboard', label: 'Leaderboard', icon: FiAward },
 ];

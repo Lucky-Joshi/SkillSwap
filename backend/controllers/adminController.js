@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const UserSkill = require('../models/UserSkill');
-const Match = require('../models/Match');
+const Connection = require('../models/Connection');
 const Session = require('../models/Session');
 const Message = require('../models/Message');
 const Review = require('../models/Review');
@@ -19,7 +19,7 @@ const { resetDemoAccount } = require('../services/seedService');
 const getStats = asyncHandler(async (req, res) => {
   const [
     totalUsers, verifiedUsers, testUsers, demoUsers, totalSkills, totalBadges,
-    totalInstitutions, totalMatches, totalSessions, totalMessages, totalReviews,
+    totalInstitutions, totalConnections, totalSessions, totalMessages, totalReviews,
   ] = await Promise.all([
     User.countDocuments({}),
     User.countDocuments({ isVerified: true }),
@@ -28,7 +28,7 @@ const getStats = asyncHandler(async (req, res) => {
     Skill.countDocuments({}),
     Badge.countDocuments({}),
     Institution.countDocuments({}),
-    Match.countDocuments({}),
+    Connection.countDocuments({}),
     Session.countDocuments({}),
     Message.countDocuments({}),
     Review.countDocuments({}),
@@ -50,7 +50,7 @@ const getStats = asyncHandler(async (req, res) => {
       totalSkills,
       totalBadges,
       totalInstitutions,
-      totalMatches,
+      totalConnections,
       totalSessions,
       totalMessages,
       totalReviews,
@@ -109,7 +109,7 @@ const purgeData = asyncHandler(async (req, res) => {
   const keepAdmin = await User.findOne({ role: 'admin' }).select('_id');
   await Promise.all([
     UserSkill.deleteMany({}),
-    Match.deleteMany({}),
+    Connection.deleteMany({}),
     Session.deleteMany({}),
     Message.deleteMany({}),
     Review.deleteMany({}),

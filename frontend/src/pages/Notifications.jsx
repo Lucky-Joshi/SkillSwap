@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { FiCheck, FiCheckCircle, FiMessageSquare, FiCalendar } from 'react-icons/fi';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiCheck, FiCheckCircle, FiMessageSquare, FiCalendar, FiArrowRight, FiZap } from 'react-icons/fi';
 import Card from '../components/ui/Card';
 import Tag from '../components/ui/Tag';
 import Avatar from '../components/ui/Avatar';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
+import Modal from '../components/ui/Modal';
 import { CardSkeleton } from '../components/ui/Skeleton';
 import Pagination from '../components/ui/Pagination';
 import { getNotifications, markRead, markAllRead } from '../services/notifications';
@@ -29,11 +30,13 @@ const ICONS = {
 
 export default function Notifications() {
   useDocumentTitle('Notifications');
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [acceptedUser, setAcceptedUser] = useState(null);
 
   const load = useCallback(async (p = 1) => {
     setLoading(true);
@@ -66,11 +69,12 @@ export default function Notifications() {
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  const handleRespond = async (matchId, action) => {
+  const handleRespond = async (matchId, action, otherUser) => {
     try {
       if (action === 'accept') {
         await acceptMatch(matchId);
         toast.success('Request accepted! Start chatting 🎉');
+        setAcceptedUser({ matchId, ...otherUser });
       } else {
         await rejectMatch(matchId);
         toast('Request declined');
@@ -106,8 +110,8 @@ export default function Notifications() {
               </Link>
               {r.compatibilityScore > 0 && <Tag tone="green">AI {r.compatibilityScore}%</Tag>}
               <div className="ml-auto flex gap-2">
-                <Button size="sm" variant="secondary" onClick={() => handleRespond(r.id, 'reject')}>Decline</Button>
-                <Button size="sm" onClick={() => handleRespond(r.id, 'accept')}><FiCheck className="h-4 w-4" /> Accept</Button>
+                <Button size="sm" variant="secondary" onClick={() => handleRespond(r.id, 'reject', r.otherUser)}>Decline</Button>
+                <Button size="sm" onClick={() => handleRespond(r.id, 'accept', r.otherUser)}><FiCheck className="h-4 w-4" /> Accept</Button>
               </div>
             </Card>
           ))}
@@ -157,7 +161,7 @@ export default function Notifications() {
               )}
               {n.type === 'mentorship' && (
                 <Link
-                  to="/mentorships"
+                  to="/connections"
                   className="hidden shrink-0 items-center gap-1 text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300 sm:flex"
                 >
                   🤝 View
@@ -169,6 +173,57 @@ export default function Notifications() {
           <Pagination page={page} totalPages={totalPages} onChange={setPage} />
         </div>
       )}
+
+      {/* Post-acceptance CTA modal */}
+      <AnimatePresence>
+        {acceptedUser && (
+          <Modal open onClose={() => setAcceptedUser(null)} title="Connection accepted!" size="sm">
+            <div className="space-y-5">
+              <div className="flex flex-col items-center gap-3 text-center">
+                <div className="relative">
+                  <Avatar src={acceptedUser.avatar} name={acceptedUser.name} size="xl" />
+                  <div className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-success-500 text-white">
+                    <FiCheck className="h-4 w-4" />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-bold">You and {acceptedUser.name}</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Your connection is now active. Chat and sessions are unlocked.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-gradient-to-br from-brand-500 to-indigo-600 p-4 text-white">
+                <div className="flex items-center gap-2 text-sm font-semibold text-brand-100">
+                  <FiZap className="h-4 w-4" /> Recommended next step
+                </div>
+                <p className="mt-1 text-sm text-white/90">
+                  Schedule your first session to start learning together. Good sessions lead to badges and XP!
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Button className="w-full" onClick={() => {
+                  setAcceptedUser(null);
+                  navigate(`/sessions`);
+                }}>
+                  <FiCalendar className="h-4 w-4" /> Schedule first session <FiArrowRight className="h-4 w-4" />
+                </Button>
+                <Button variant="secondary" className="w-full" onClick={() => {
+                  setAcceptedUser(null);
+                  navigate(`/chat?user=${acceptedUser.id}`);
+                }}>
+                  <FiMessageSquare className="h-4 w-4" /> Start chatting
+                </Button>
+                <Button variant="ghost" className="w-full" onClick={() => setAcceptedUser(null)}>
+                  Do this later
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

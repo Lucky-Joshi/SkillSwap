@@ -1,5 +1,5 @@
 const UserSkill = require('../models/UserSkill');
-const Match = require('../models/Match');
+const Connection = require('../models/Connection');
 const UserBadge = require('../models/UserBadge');
 const Skill = require('../models/Skill');
 
@@ -47,13 +47,13 @@ const publicUser = async (user) => {
 };
 
 const getMatchStatusWith = async (userA, userB) => {
-  const match = await Match.findOne({
+  const conn = await Connection.findOne({
     $or: [
-      { mentorId: userA, learnerId: userB },
-      { mentorId: userB, learnerId: userA },
+      { userA, userB },
+      { userA: userB, userB: userA },
     ],
   });
-  return match || null;
+  return conn || null;
 };
 
 const resolveSkills = async (names) => {

@@ -1,4 +1,4 @@
-const Match = require('../models/Match');
+const Connection = require('../models/Connection');
 
 /**
  * Session helpers: effective start time, derived lifecycle status and
@@ -84,12 +84,12 @@ const applySessionCompletion = async (user, session) => {
   return user;
 };
 
-// Resolve the relationship between the session's two participants.
+// Resolve the connection between the session's two participants.
 const relationshipFor = (session) =>
-  Match.findOne({
+  Connection.findOne({
     $or: [
-      { mentorId: session.mentorId, learnerId: session.learnerId },
-      { mentorId: session.learnerId, learnerId: session.mentorId },
+      { userA: session.mentorId, userB: session.learnerId },
+      { userA: session.learnerId, userB: session.mentorId },
     ],
     status: 'accepted',
     active: true,
