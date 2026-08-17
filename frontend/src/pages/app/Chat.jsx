@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { FiSend, FiArrowLeft, FiCheck, FiCheckSquare, FiLock } from 'react-icons/fi';
+import { FiSend, FiArrowLeft, FiCheck, FiCheckSquare, FiLock, FiSearch } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import Avatar from '../../components/ui/Avatar';
 import EmptyState from '../../components/ui/EmptyState';
@@ -28,6 +28,7 @@ export default function Chat() {
   const [sending, setSending] = useState(false);
   const [typingFrom, setTypingFrom] = useState(false);
   const [onlineMap, setOnlineMap] = useState({});
+  const [convSearch, setConvSearch] = useState('');
   const bottomRef = useRef(null);
   const typingTimeout = useRef(null);
 
@@ -73,6 +74,13 @@ export default function Chat() {
   }, [activeId]);
 
   const active = conversations.find((c) => c.userId === activeId);
+
+  const filteredConversations = convSearch.trim()
+    ? conversations.filter((c) =>
+        (c.user?.name || '').toLowerCase().includes(convSearch.toLowerCase()) ||
+        (c.lastMessage || '').toLowerCase().includes(convSearch.toLowerCase())
+      )
+    : conversations;
 
   const loadThread = useCallback(
     async (otherId) => {
@@ -188,8 +196,12 @@ export default function Chat() {
         {/* Conversation list — only active mentorship/peer relationships */}
         <aside className={`w-full shrink-0 overflow-y-auto border-r border-slate-200/60 dark:border-white/10 sm:w-72 ${activeId ? 'hidden sm:block' : 'block'}`}>
           <div className="border-b border-slate-200/60 p-3 dark:border-white/10">
-            <p className="px-1 text-xs text-slate-400">
-              Conversations appear after a mentorship request is accepted.
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={convSearch} onChange={(e) => setConvSearch(e.target.value)} placeholder="Search conversations…" className="input !py-1.5 pl-8 text-xs" />
+            </div>
+            <p className="mt-1.5 px-1 text-[10px] text-slate-400">
+              Chat unlocks when a mentorship request is accepted.
             </p>
           </div>
 
@@ -197,17 +209,17 @@ export default function Chat() {
             <div className="space-y-3 p-4">
               {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-16 rounded-xl" />)}
             </div>
-          ) : conversations.length === 0 ? (
+          ) : filteredConversations.length === 0 ? (
             <div className="p-4">
               <EmptyState
-                icon="🤝"
-                title="No conversations yet"
-                description="Chat unlocks when a mentorship request is accepted. Find a mentor to get started."
-                action={<Button size="sm" onClick={() => navigate('/app/recommendations')}>Find a mentor</Button>}
+                icon={convSearch ? '🔍' : '🤝'}
+                title={convSearch ? 'No conversations match' : 'No conversations yet'}
+                description={convSearch ? 'Try a different search term.' : 'Chat unlocks when a mentorship request is accepted. Find a mentor to get started.'}
+                action={!convSearch && <Button size="sm" onClick={() => navigate('/app/recommendations')}>Find a mentor</Button>}
               />
             </div>
           ) : (
-            conversations.map((c) => {
+            filteredConversations.map((c) => {
               const isActive = c.userId === activeId;
               const online = onlineMap[c.userId] ?? c.online ?? false;
               return (

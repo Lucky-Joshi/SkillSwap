@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { AnimatePresence } from 'framer-motion';
 import {
   FiCalendar, FiCheckCircle, FiClock, FiVideo, FiMapPin, FiXCircle,
-  FiPlus, FiArrowRight, FiZap, FiEye,
+  FiPlus, FiArrowRight, FiZap, FiEye, FiSearch, FiFilter,
 } from 'react-icons/fi';
 import Card from '../../components/ui/Card';
 import Tabs from '../../components/ui/Tabs';
@@ -217,6 +217,11 @@ export default function Sessions() {
   const [completing, setCompleting] = useState(null);
   const [busyId, setBusyId] = useState(null);
 
+  const [search, setSearch] = useState('');
+  const [meetingModeFilter, setMeetingModeFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -265,7 +270,24 @@ export default function Sessions() {
     cancelled: dashboard.cancelled || [],
     history: dashboard.history || [],
   };
-  const sessions = listMap[tab] || [];
+
+  const filterSessions = (arr) => {
+    let result = arr;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((s) =>
+        (s.topic || '').toLowerCase().includes(q) ||
+        (s.mentor?.name || '').toLowerCase().includes(q) ||
+        (s.learner?.name || '').toLowerCase().includes(q)
+      );
+    }
+    if (meetingModeFilter) result = result.filter((s) => s.meetingMode === meetingModeFilter);
+    if (roleFilter === 'mentor') result = result.filter((s) => s.role === 'mentor');
+    if (roleFilter === 'learner') result = result.filter((s) => s.role === 'learner');
+    return result;
+  };
+
+  const sessions = filterSessions(listMap[tab] || []);
   const next = dashboard.nextMeeting;
 
   const tabs = [
@@ -315,6 +337,26 @@ export default function Sessions() {
       )}
 
       <Tabs tabs={tabs} active={tab} onChange={setTab} className="w-full sm:w-auto" />
+
+      {/* Filters */}
+      <Card className="!p-3">
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by topic or person…" className="input pl-9" />
+          </div>
+          <select value={meetingModeFilter} onChange={(e) => setMeetingModeFilter(e.target.value)} className="input w-auto">
+            <option value="">All modes</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
+          </select>
+          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="input w-auto">
+            <option value="">All roles</option>
+            <option value="mentor">I mentor</option>
+            <option value="learner">I learn</option>
+          </select>
+        </div>
+      </Card>
 
       {loading ? (
         <div className="space-y-4">{[0, 1, 2].map((i) => <CardSkeleton key={i} />)}</div>

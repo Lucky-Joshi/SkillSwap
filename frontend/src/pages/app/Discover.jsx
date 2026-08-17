@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FiSearch, FiFilter, FiSliders } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiX } from 'react-icons/fi';
 import Card from '../../components/ui/Card';
 import MatchCard from '../../components/feature/MatchCard';
 import Tabs from '../../components/ui/Tabs';
@@ -10,7 +10,7 @@ import Button from '../../components/ui/Button';
 import { searchUsers } from '../../services/users';
 import { requestMatch } from '../../services/matches';
 import { useDebounce, useDocumentTitle } from '../../hooks';
-import { SKILL_CATEGORIES, AVAILABILITY_OPTIONS } from '../../utils/constants';
+import { SKILL_CATEGORIES, AVAILABILITY_OPTIONS, DEPARTMENT_OPTIONS, QUALIFICATION_OPTIONS } from '../../utils/constants';
 import toast from 'react-hot-toast';
 
 export default function Discover() {
@@ -25,12 +25,17 @@ export default function Discover() {
   const [department, setDepartment] = useState('');
   const [year, setYear] = useState('');
   const [availability, setAvailability] = useState('');
+  const [college, setCollege] = useState('');
+  const [qualification, setQualification] = useState('');
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [sortBy, setSortBy] = useState('');
   const [requestingId, setRequestingId] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
   const debouncedSearch = useDebounce(search, 350);
 
   const filters = useMemo(
-    () => ({ skill, department, year, availability }),
-    [skill, department, year, availability]
+    () => ({ skill, department, year, availability, college, qualification, verified: verifiedOnly ? 'true' : undefined, sort: sortBy || undefined }),
+    [skill, department, year, availability, college, qualification, verifiedOnly, sortBy]
   );
 
   const load = useCallback(async () => {
@@ -55,7 +60,20 @@ export default function Discover() {
     load();
   }, [load]);
 
-  const hasActiveFilter = search || skill || department || year || availability;
+  const hasActiveFilter = search || skill || department || year || availability || college || qualification || verifiedOnly || sortBy;
+
+  const clearFilters = () => {
+    setSearch('');
+    setSkill('');
+    setDepartment('');
+    setYear('');
+    setAvailability('');
+    setCollege('');
+    setQualification('');
+    setVerifiedOnly(false);
+    setSortBy('');
+    setPage(1);
+  };
 
   const handleRequest = async (person) => {
     setRequestingId(person.id);
@@ -71,13 +89,7 @@ export default function Discover() {
     }
   };
 
-  const matches = (u) => {
-    const teach = u.canTeach || [];
-    const learn = u.wantToLearn || [];
-    // For peer mode, show all skills (both teach and learn)
-    const pool = mode === 'peer' ? [...new Set([...teach, ...learn])] : (mode === 'mentors' ? teach : learn);
-    return skill ? pool.filter((s) => s.toLowerCase().includes(skill.toLowerCase())) : pool;
-  };
+  const activeFilterCount = [skill, department, year, availability, college, qualification, verifiedOnly, sortBy].filter(Boolean).length;
 
   return (
     <div className="space-y-6">
@@ -98,30 +110,58 @@ export default function Discover() {
 
       {/* Filters */}
       <Card className="!p-4">
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-6">
+        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <div className="relative lg:col-span-2">
             <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search by name or bio…" className="input pl-10" />
+            <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search by name, bio or college…" className="input pl-10" />
           </div>
-          <input value={skill} onChange={(e) => { setSkill(e.target.value); setPage(1); }} placeholder="Skill (e.g. React)" className="input" />
           <select value={department} onChange={(e) => { setDepartment(e.target.value); setPage(1); }} className="input">
             <option value="">All departments</option>
-            {SKILL_CATEGORIES.map((c) => <option key={c.value} value={c.label}>{c.label}</option>)}
-            {['Electronics', 'Mechanical', 'Civil'].map((d) => <option key={d} value={d}>{d}</option>)}
+            {DEPARTMENT_OPTIONS.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
-          <select value={year} onChange={(e) => { setYear(e.target.value); setPage(1); }} className="input">
-            <option value="">Any year</option>
-            {['1', '2', '3', '4', '5'].map((y) => <option key={y} value={y}>Year {y}</option>)}
-          </select>
-          <select value={availability} onChange={(e) => { setAvailability(e.target.value); setPage(1); }} className="input">
-            <option value="">Any availability</option>
-            {AVAILABILITY_OPTIONS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-          </select>
+          <div className="flex gap-2">
+            <select value={year} onChange={(e) => { setYear(e.target.value); setPage(1); }} className="input flex-1">
+              <option value="">Any year</option>
+              {['1', '2', '3', '4', '5'].map((y) => <option key={y} value={y}>Year {y}</option>)}
+            </select>
+            <button onClick={() => setShowFilters(!showFilters)} className={`btn-secondary relative flex items-center gap-1.5 ${showFilters ? 'ring-1 ring-brand-400' : ''}`}>
+              <FiFilter className="h-4 w-4" /> Filters
+              {activeFilterCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand-600 text-[9px] font-bold text-white">{activeFilterCount}</span>
+              )}
+            </button>
+          </div>
         </div>
+
+        {showFilters && (
+          <div className="mt-3 grid gap-3 border-t border-slate-200/60 pt-3 dark:border-white/10 md:grid-cols-2 lg:grid-cols-4">
+            <input value={skill} onChange={(e) => { setSkill(e.target.value); setPage(1); }} placeholder="Skill (e.g. React)" className="input" />
+            <select value={availability} onChange={(e) => { setAvailability(e.target.value); setPage(1); }} className="input">
+              <option value="">Any availability</option>
+              {AVAILABILITY_OPTIONS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+            </select>
+            <input value={college} onChange={(e) => { setCollege(e.target.value); setPage(1); }} placeholder="College / University" className="input" />
+            <select value={qualification} onChange={(e) => { setQualification(e.target.value); setPage(1); }} className="input">
+              <option value="">Any qualification</option>
+              {QUALIFICATION_OPTIONS.map((q) => <option key={q} value={q}>{q}</option>)}
+            </select>
+            <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }} className="input">
+              <option value="">Default sort</option>
+              <option value="rating">Highest rated</option>
+              <option value="name">Name A-Z</option>
+              <option value="newest">Newest</option>
+            </select>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={verifiedOnly} onChange={(e) => { setVerifiedOnly(e.target.checked); setPage(1); }} className="h-4 w-4 rounded" />
+              Verified only
+            </label>
+          </div>
+        )}
+
         {hasActiveFilter && (
-          <button onClick={() => { setSearch(''); setSkill(''); setDepartment(''); setYear(''); setAvailability(''); setPage(1); }}
+          <button onClick={clearFilters}
             className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300">
-            <FiFilter /> Clear filters
+            <FiX /> Clear all filters
           </button>
         )}
       </Card>

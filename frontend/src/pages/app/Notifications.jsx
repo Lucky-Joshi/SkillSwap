@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiCheck, FiCheckCircle, FiMessageSquare, FiCalendar, FiArrowRight, FiZap } from 'react-icons/fi';
+import { FiCheck, FiCheckCircle, FiMessageSquare, FiCalendar, FiArrowRight, FiZap, FiFilter } from 'react-icons/fi';
 import Card from '../../components/ui/Card';
 import Tag from '../../components/ui/Tag';
 import Avatar from '../../components/ui/Avatar';
@@ -37,12 +37,17 @@ export default function Notifications() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [acceptedUser, setAcceptedUser] = useState(null);
+  const [filterRead, setFilterRead] = useState('');
+  const [filterType, setFilterType] = useState('');
 
   const load = useCallback(async (p = 1) => {
     setLoading(true);
     try {
+      const params = { page: p, limit: 15 };
+      if (filterRead) params.read = filterRead;
+      if (filterType) params.type = filterType;
       const [res, reqRes] = await Promise.all([
-        getNotifications({ page: p, limit: 15 }),
+        getNotifications(params),
         getPendingRequests(),
       ]);
       setItems(res.data || []);
@@ -53,11 +58,13 @@ export default function Notifications() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filterRead, filterType]);
 
   useEffect(() => {
     load(page);
   }, [load, page]);
+
+  useEffect(() => { setPage(1); load(1); }, [filterRead, filterType]);
 
   const handleRead = async (id) => {
     await markRead(id);
@@ -94,6 +101,31 @@ export default function Notifications() {
         </div>
         <Button variant="secondary" onClick={handleReadAll}><FiCheck className="h-4 w-4" /> Mark all read</Button>
       </div>
+
+      {/* Filters */}
+      <Card className="!p-3">
+        <div className="flex items-center gap-3">
+          <FiFilter className="h-4 w-4 text-slate-400" />
+          <select value={filterRead} onChange={(e) => setFilterRead(e.target.value)} className="input w-auto">
+            <option value="">All</option>
+            <option value="false">Unread only</option>
+            <option value="true">Read only</option>
+          </select>
+          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="input w-auto">
+            <option value="">All types</option>
+            <option value="mentorship">Connections</option>
+            <option value="session">Sessions</option>
+            <option value="message">Messages</option>
+            <option value="badge">Badges</option>
+            <option value="review">Reviews</option>
+            <option value="system">System</option>
+          </select>
+          {(filterRead || filterType) && (
+            <button onClick={() => { setFilterRead(''); setFilterType(''); }}
+              className="text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300">Clear</button>
+          )}
+        </div>
+      </Card>
 
       {/* Pending match requests */}
       {requests.length > 0 && (

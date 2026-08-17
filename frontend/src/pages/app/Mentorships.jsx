@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   FiCalendar, FiMessageSquare, FiUser, FiUsers, FiTrash2, FiCheck,
   FiClock, FiVideo, FiMapPin, FiArrowRight, FiBarChart2, FiRepeat,
+  FiSearch, FiFilter,
 } from 'react-icons/fi';
 import Card from '../../components/ui/Card';
 import Tabs from '../../components/ui/Tabs';
@@ -29,6 +30,8 @@ export default function Connections({ initialTab = 'mentors' }) {
   const [schedulerFor, setSchedulerFor] = useState(null);
   const [confirmCancel, setConfirmCancel] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('recent');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -46,7 +49,30 @@ export default function Connections({ initialTab = 'mentors' }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const list = tab === 'mentor' ? learners : tab === 'peer' ? peers : mentors;
+  const rawList = tab === 'mentor' ? learners : tab === 'peer' ? peers : mentors;
+  const list = useMemo(() => {
+    let result = rawList;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((r) =>
+        (r.otherUser?.name || '').toLowerCase().includes(q) ||
+        (r.otherUser?.department || '').toLowerCase().includes(q) ||
+        (r.otherUser?.college || '').toLowerCase().includes(q) ||
+        (r.skills || []).some((s) => (s.name || '').toLowerCase().includes(q))
+      );
+    }
+    if (sortBy === 'sessions') {
+      result = [...result].sort((a, b) => ((b.stats?.completedSessions || 0) - (a.stats?.completedSessions || 0)));
+    } else if (sortBy === 'hours') {
+      result = [...result].sort((a, b) => ((b.stats?.totalHours || 0) - (a.stats?.totalHours || 0)));
+    } else if (sortBy === 'rating') {
+      result = [...result].sort((a, b) => ((b.otherUser?.rating || 0) - (a.otherUser?.rating || 0)));
+    } else if (sortBy === 'name') {
+      result = [...result].sort((a, b) => (a.otherUser?.name || '').localeCompare(b.otherUser?.name || ''));
+    }
+    return result;
+  }, [rawList, search, sortBy]);
+
   const heading = tab === 'peer' ? 'Peer Connections' : tab === 'mentor' ? 'My Learners' : 'My Mentors';
   const sub = tab === 'peer'
     ? 'Mutual skill exchange partnerships.'
@@ -91,6 +117,23 @@ export default function Connections({ initialTab = 'mentors' }) {
           onChange={setTab}
         />
       </div>
+
+      {/* Search and sort */}
+      <Card className="!p-3">
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, department, college or skill…" className="input pl-9" />
+          </div>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="input w-auto">
+            <option value="recent">Recently accepted</option>
+            <option value="sessions">Most sessions</option>
+            <option value="hours">Most hours</option>
+            <option value="rating">Highest rated</option>
+            <option value="name">Name A-Z</option>
+          </select>
+        </div>
+      </Card>
 
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2"><CardSkeleton /><CardSkeleton /><CardSkeleton /><CardSkeleton /></div>
