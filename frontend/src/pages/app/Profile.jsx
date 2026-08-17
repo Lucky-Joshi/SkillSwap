@@ -1,56 +1,82 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import {
-  FiEdit3, FiSave, FiGithub, FiLinkedin, FiGlobe, FiMail, FiMessageSquare,
-  FiCalendar, FiUpload, FiAward, FiBookOpen, FiTarget, FiCheckCircle, FiX, FiTrash2,
-  FiClock, FiBarChart2,
+  FiEdit3, FiMessageSquare, FiCalendar, FiUserPlus, FiSettings,
+  FiTrash2, FiUpload, FiLink,
 } from 'react-icons/fi';
-import Card from '../../components/ui/Card';
-import Avatar from '../../components/ui/Avatar';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import TextArea from '../../components/ui/TextArea';
-import Select from '../../components/ui/Select';
-import RatingStars from '../../components/ui/RatingStars';
-import Tag from '../../components/ui/Tag';
 import Tabs from '../../components/ui/Tabs';
-import Modal from '../../components/ui/Modal';
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
 import Spinner from '../../components/ui/Spinner';
 import EmptyState from '../../components/ui/EmptyState';
+import Modal from '../../components/ui/Modal';
+import { Skeleton, CardSkeleton } from '../../components/ui/Skeleton';
 import SkillPicker from '../../components/feature/SkillPicker';
 import SessionForm from '../../components/feature/SessionForm';
-import { getUser, updateProfile, uploadAvatar, uploadResume, addSkill, removeUserSkill } from '../../services/users';
+import ProfileHeader from '../../components/profile/ProfileHeader';
+import AboutSection from '../../components/profile/AboutSection';
+import SkillShowcase from '../../components/profile/SkillShowcase';
+import StatsGrid from '../../components/profile/StatsGrid';
+import AIInsights from '../../components/profile/AIInsights';
+import ConnectionStats from '../../components/profile/ConnectionStats';
+import PortfolioSection from '../../components/profile/PortfolioSection';
+import CertificateShowcase from '../../components/profile/CertificateShowcase';
+import ReviewsSection from '../../components/profile/ReviewsSection';
+import AchievementShowcase from '../../components/profile/AchievementShowcase';
+import ActivityTimeline from '../../components/profile/ActivityTimeline';
+import RoadmapProgress from '../../components/profile/RoadmapProgress';
+import AvailabilitySection from '../../components/profile/AvailabilitySection';
+import InterestsTags from '../../components/profile/InterestsTags';
+import EducationTimeline from '../../components/profile/EducationTimeline';
+import SocialLinksBar from '../../components/profile/SocialLinksBar';
+import ProfileCompletion from '../../components/profile/ProfileCompletion';
+import PrivacySettings from '../../components/profile/PrivacySettings';
+import ProfileEditForm from '../../components/profile/ProfileEditForm';
+import {
+  getUser, getProfile, getPortfolio, uploadAvatar, uploadCoverPhoto,
+  addSkill, removeUserSkill, updatePrivacy, deleteMyAccount,
+} from '../../services/users';
 import { getSkills } from '../../services/skills';
 import { getUserReviews } from '../../services/reviews';
 import { getAllBadges } from '../../services/badges';
 import { requestMatch } from '../../services/matches';
 import { useAuth } from '../../context/AuthContext';
 import { useDocumentTitle } from '../../hooks';
-import { formatDate, timeAgo, levelLabel } from '../../utils/helpers';
-import { AVAILABILITY_OPTIONS, YEAR_OPTIONS, QUALIFICATION_OPTIONS, DEPARTMENT_OPTIONS, TRUST_BREAKDOWN, trustLabel } from '../../utils/constants';
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-6">
+      <CardSkeleton />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <CardSkeleton />
+        <CardSkeleton />
+      </div>
+    </div>
+  );
+}
 
 export default function Profile() {
   useDocumentTitle('Profile');
   const { id } = useParams();
-  const { user: me, updateUser } = useAuth();
+  const { user: me, updateUser, logout } = useAuth();
   const navigate = useNavigate();
+
   const [profile, setProfile] = useState(null);
+  const [portfolio, setPortfolio] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
   const [tab, setTab] = useState('overview');
-  const [form, setForm] = useState({});
-  const [allSkills, setAllSkills] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [badges, setBadges] = useState([]);
+  const [allSkills, setAllSkills] = useState([]);
+
+  const [editOpen, setEditOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerType, setPickerType] = useState('teach');
+  const [pickerType, setPickerType] = useState('teaching');
   const [sessionOpen, setSessionOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef(null);
-  const resumeRef = useRef(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const isMe = !id || String(profile?.id || profile?._id) === String(me?.id);
 
@@ -58,493 +84,383 @@ export default function Profile() {
     setLoading(true);
     try {
       const userId = id || me.id;
-      const [userRes, reviewsRes, badgesRes] = await Promise.all([
-        getUser(userId),
-        getUserReviews(userId, { limit: 6 }),
+      const promises = [
+        isMe ? getProfile() : getUser(userId),
+        getUserReviews(userId, { limit: 10 }),
         getAllBadges(),
-      ]);
+      ];
+      if (!isMe) promises.push(getPortfolio(userId));
+
+      const results = await Promise.all(promises);
+      const userRes = results[0];
+      const reviewsRes = results[1];
+      const badgesRes = results[2];
+      const portfolioRes = !isMe ? results[3] : null;
+
       setProfile(userRes.user);
-      setForm(userRes.user);
       setReviews(reviewsRes.data || []);
       setBadges(badgesRes.badges || []);
+      if (portfolioRes) setPortfolio(portfolioRes);
     } catch (err) {
       toast.error(err.message);
     } finally {
       setLoading(false);
     }
-  }, [id, me.id]);
+  }, [id, me?.id, isMe]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (me?.id) load();
+  }, [load, me?.id]);
 
   useEffect(() => {
-    getSkills({ limit: 100 }).then((res) => setAllSkills(res.data || [])).catch(() => {});
+    getSkills({ limit: 100 })
+      .then((res) => setAllSkills(res.data || []))
+      .catch(() => {});
   }, []);
 
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const res = await updateProfile({
-        name: form.name,
-        bio: form.bio,
-        college: form.college,
-        qualification: form.qualification,
-        department: form.department,
-        year: form.year,
-        availability: form.availability,
-        github: form.github,
-        linkedin: form.linkedin,
-        portfolio: form.portfolio,
-      });
-      setProfile(res.user);
-      setForm(res.user);
-      if (isMe) updateUser(res.user);
-      setEditing(false);
-      toast.success('Profile updated');
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setSaving(false);
+  useEffect(() => {
+    if (profile) {
+      const name = isMe ? 'My Profile' : profile.name;
+      document.title = `${name} · SkillSwap`;
     }
-  };
+  }, [profile, isMe]);
 
-  const handleAvatar = async (e) => {
-    const file = e.target.files?.[0];
+  const handleAvatarChange = async (file) => {
     if (!file) return;
-    setUploading(true);
     try {
       const res = await uploadAvatar(file);
       setProfile(res.user);
-      setForm(res.user);
       if (isMe) updateUser(res.user);
       toast.success('Avatar updated');
     } catch (err) {
       toast.error(err.message);
-    } finally {
-      setUploading(false);
     }
   };
 
-  const handleResume = async (e) => {
-    const file = e.target.files?.[0];
+  const handleCoverChange = async (file) => {
     if (!file) return;
-    setUploading(true);
     try {
-      const res = await uploadResume(file);
-      toast.success(`Resume parsed! ${res.added.length ? `Added ${res.added.length} skills.` : 'No new skills found.'}`);
-      const userRes = await getUser(me.id);
-      setProfile(userRes.user);
-      setForm(userRes.user);
-      updateUser(userRes.user);
+      const res = await uploadCoverPhoto(file);
+      setProfile(res.user);
+      if (isMe) updateUser(res.user);
+      toast.success('Cover photo updated');
     } catch (err) {
       toast.error(err.message);
-    } finally {
-      setUploading(false);
     }
   };
 
-  const openPicker = (type) => {
-    setPickerType(type);
-    setPickerOpen(true);
+  const handleSaved = (updatedUser) => {
+    setProfile(updatedUser);
+    if (isMe) updateUser(updatedUser);
   };
 
   const handleAddSkills = async (ids) => {
-    setSaving(true);
     try {
       for (const skillId of ids) {
-        await addSkill({ skillId, canTeach: pickerType === 'teach', wantToLearn: pickerType !== 'teach', level: 3 });
+        await addSkill({
+          skillId,
+          canTeach: pickerType === 'teaching',
+          wantToLearn: pickerType === 'learning',
+          level: 3,
+        });
       }
       toast.success('Skills added');
       setPickerOpen(false);
-      const userRes = await getUser(me.id);
+      const userId = id || me.id;
+      const userRes = isMe ? await getProfile() : await getUser(userId);
       setProfile(userRes.user);
-      setForm(userRes.user);
-      updateUser(userRes.user);
+      if (isMe) updateUser(userRes.user);
     } catch (err) {
       toast.error(err.message);
-    } finally {
-      setSaving(false);
     }
   };
 
   const handleRemoveSkill = async (skillEntry) => {
     try {
-      await removeUserSkill(skillEntry.id || skillEntry._id);
+      await removeUserSkill(skillEntry._id || skillEntry.skillId);
       toast.success(`Removed ${skillEntry.name}`);
-      const userRes = await getUser(me.id);
+      const userId = id || me.id;
+      const userRes = isMe ? await getProfile() : await getUser(userId);
       setProfile(userRes.user);
-      setForm(userRes.user);
-      updateUser(userRes.user);
+      if (isMe) updateUser(userRes.user);
     } catch (err) {
       toast.error(err.message);
     }
   };
 
-  const handleRequest = async () => {
+  const handleEndorse = async (skillId, userId) => {
     try {
-      await requestMatch({ userId: profile.id, mode: 'mentors', compatibilityScore: 0 });
-      toast.success('Request sent!');
+      const { endorseSkill } = await import('../../services/users');
+      await endorseSkill({ skillId, userId });
+      toast.success('Skill endorsed');
     } catch (err) {
       toast.error(err.message);
     }
   };
 
-  if (loading) return <Spinner />;
-  if (!profile) return <EmptyState icon="👤" title="User not found" />;
+  const handleConnect = async () => {
+    try {
+      await requestMatch({
+        userId: profile.id || profile._id,
+        mode: 'mentors',
+        compatibilityScore: 0,
+      });
+      toast.success('Connection request sent!');
+      load();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
 
-  const teach = profile.skills?.filter((s) => s.canTeach) || [];
-  const learn = profile.skills?.filter((s) => s.wantToLearn) || [];
-  const earnedBadges = badges.filter((b) => b.earned);
+  const handleMessage = () => {
+    navigate(`/app/chat?user=${profile.id || profile._id}`);
+  };
 
-  const p = profile;
-  const profileId = p.id || p._id;
-  const relStats = p.relationship?.stats || {};
-  const hasRelStats = p.relationship?.active && relStats.completedSessions !== undefined;
+  const handleSchedule = () => setSessionOpen(true);
+
+  const handlePrivacySave = async (settings) => {
+    try {
+      const res = await updatePrivacy(settings);
+      setProfile((prev) => ({ ...prev, privacy: res.privacy || settings }));
+      toast.success('Privacy settings saved');
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await deleteMyAccount();
+      toast.success('Account deleted');
+      logout();
+      navigate('/');
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setDeleting(false);
+      setDeleteOpen(false);
+    }
+  };
+
+  if (loading) return <LoadingSkeleton />;
+  if (!profile) return <EmptyState icon="👤" title="User not found" description="This profile may have been removed." />;
+
+  const earnedBadges = badges.filter((b) => b.earned || b.earnedAt);
+  const teachSkills = profile.skills?.filter((s) => s.type === 'teaching' || s.canTeach) || [];
+  const learnSkills = profile.skills?.filter((s) => s.type === 'learning' || s.isLearning) || [];
+  const certificates = portfolio?.certificates || [];
+  const educationHistory = portfolio?.educationHistory || profile.educationHistory || [];
+  const activities = portfolio?.activities || profile.activities || [];
+  const endorsements = portfolio?.endorsements || [];
+  const connections = portfolio?.connections || profile.connections || {};
+  const stats = portfolio?.stats || profile.stats || profile;
+  const ratingBreakdown = portfolio?.ratingBreakdown || {};
+
+  const relationship = profile.relationship || null;
+
+  const mainTabs = [
+    { value: 'overview', label: 'Overview' },
+    { value: 'skills', label: `Skills (${profile.skills?.length || 0})` },
+    { value: 'badges', label: `Badges (${earnedBadges.length})` },
+    { value: 'reviews', label: `Reviews (${reviews.length})` },
+    ...(isMe ? [{ value: 'settings', label: 'Settings' }] : []),
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <Card className="relative overflow-hidden">
-        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-r from-brand-600 via-brand-500 to-accent" />
-        <div className="relative mt-12 flex flex-col items-start gap-5 sm:flex-row sm:items-end">
-          <button onClick={() => isMe && fileRef.current?.click()} className="group relative" title={isMe ? 'Change avatar' : ''}>
-            <Avatar src={p.avatar} name={p.name} size="xl" className="ring-4 ring-white dark:ring-slate-900" />
-            {isMe && (
-              <span className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-white opacity-0 shadow-lg transition group-hover:opacity-100">
-                <FiEdit3 className="h-4 w-4" />
-              </span>
-            )}
-          </button>
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={handleAvatar} />
-          <div className="flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="font-display text-2xl font-extrabold sm:text-3xl">{p.name}</h1>
-              {p.isVerified && <Tag tone="green" icon="✓">Verified</Tag>}
-              {p.role && p.role !== 'student' && <Tag tone="purple">{p.role}</Tag>}
-            </div>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              {p.qualification && <span className="font-medium text-slate-600 dark:text-slate-300">{p.qualification}</span>}
-              {p.qualification && ' · '}
-              {p.department}{p.department && ' · '}{p.year && `Year ${p.year}`} · {p.college}
-            </p>
-            <div className="mt-2 flex flex-wrap items-center gap-4">
-              <RatingStars rating={p.rating} count={p.reviewCount} />
-              <span className="flex items-center gap-1 text-xs font-semibold text-brand-600 dark:text-brand-300">
-                <FiAward /> {p.points || 0} pts
-              </span>
-              <span className="flex items-center gap-1.5 text-xs font-semibold" title="Profile trust score">
-                <span
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold text-white"
-                  style={{ background: `conic-gradient(#34d399 ${(p.trustScore || 0) * 3.6}deg, rgba(148,163,184,0.25) 0deg)` }}
-                >
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white dark:bg-slate-900">{p.trustScore || 0}</span>
-                </span>
-                <span className={trustLabel(p.trustScore || 0).color}>{trustLabel(p.trustScore || 0).label}</span>
-              </span>
-              {p.isTest && <Tag tone="amber">Test account</Tag>}
-              {p.availability && <Tag tone="slate">🕒 {p.availability}</Tag>}
-            </div>
-          </div>
-          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-            {isMe ? (
-              editing ? (
-                <>
-                  <Button onClick={handleSave} loading={saving}><FiSave className="h-4 w-4" /> Save</Button>
-                  <Button variant="secondary" onClick={() => setEditing(false)}>Cancel</Button>
-                </>
-              ) : (
-                <Button variant="secondary" onClick={() => setEditing(true)}><FiEdit3 className="h-4 w-4" /> Edit profile</Button>
-              )
-            ) : p.relationship?.active ? (
-              <>
-                <Button variant="secondary" onClick={() => navigate(`/app/chat?user=${profileId}`)}><FiMessageSquare className="h-4 w-4" /> Message</Button>
-                <Button variant="secondary" onClick={() => setSessionOpen(true)}><FiCalendar className="h-4 w-4" /> Schedule</Button>
-              </>
-            ) : p.relationship ? (
-              <Tag tone="amber" className="self-center">⏳ Request pending</Tag>
-            ) : (
-              <Button onClick={handleRequest}><FiMail className="h-4 w-4" /> Request</Button>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-5 flex flex-wrap gap-4 text-sm text-slate-500 dark:text-slate-400">
-          {p.bio && <p className="w-full text-slate-600 dark:text-slate-300">{p.bio}</p>}
-          {p.github && <a href={p.github} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-brand-600"><FiGithub /> GitHub</a>}
-          {p.linkedin && <a href={p.linkedin} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-brand-600"><FiLinkedin /> LinkedIn</a>}
-          {p.portfolio && <a href={p.portfolio} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-brand-600"><FiGlobe /> Portfolio</a>}
-          <span className="flex items-center gap-1.5">Joined {formatDate(p.createdAt)}</span>
-        </div>
-      </Card>
-
-      {isMe && editing && (
-        <Card>
-          <h2 className="mb-4 font-display text-lg font-bold">Edit information</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Full name" value={form.name || ''} onChange={set('name')} />
-            <Input label="College / University" value={form.college || ''} onChange={set('college')} />
-            <Select label="Qualification" value={form.qualification || ''} onChange={set('qualification')}>
-              <option value="">Select…</option>
-              {QUALIFICATION_OPTIONS.map((q) => <option key={q} value={q}>{q}</option>)}
-            </Select>
-            <Select label="Department / Stream" value={form.department || ''} onChange={set('department')}>
-              <option value="">Select…</option>
-              {DEPARTMENT_OPTIONS.map((d) => <option key={d} value={d}>{d}</option>)}
-            </Select>
-            <Select label="Year" value={form.year || ''} onChange={set('year')}>
-              <option value="">Select…</option>
-              {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y === 'Graduate' ? y : `Year ${y}`}</option>)}
-            </Select>
-            <Select label="Availability" value={form.availability || ''} onChange={set('availability')}>
-              <option value="">Select…</option>
-              {AVAILABILITY_OPTIONS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
-            </Select>
-            <Input label="GitHub" value={form.github || ''} onChange={set('github')} placeholder="https://github.com/…" />
-            <Input label="LinkedIn" value={form.linkedin || ''} onChange={set('linkedin')} placeholder="https://linkedin.com/in/…" />
-            <Input label="Portfolio" value={form.portfolio || ''} onChange={set('portfolio')} placeholder="https://…" />
-            <TextArea label="Bio" value={form.bio || ''} onChange={set('bio')} className="sm:col-span-2" />
-          </div>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Button variant="secondary" onClick={() => resumeRef.current?.click()} loading={uploading}>
-              <FiUpload className="h-4 w-4" /> Upload resume & extract skills
-            </Button>
-            <input ref={resumeRef} type="file" accept=".pdf,.docx,.txt" hidden onChange={handleResume} />
-          </div>
-        </Card>
-      )}
-
-      {/* Relationship stats — shown for active mentorship connections */}
-      {!isMe && hasRelStats && (
-        <Card>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 font-display font-bold">
-              <FiBarChart2 className="text-brand-500" />
-              Your mentorship with {p.name.split(' ')[0]}
-            </h2>
-            <Tag tone="green">Active since {formatDate(relStats.lastSessionAt || p.relationship.acceptedAt)}</Tag>
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-xl bg-brand-500/10 p-3 text-center">
-              <div className="font-display text-xl font-extrabold text-brand-600 dark:text-brand-300">{relStats.completedSessions || 0}</div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400">Sessions done</div>
-            </div>
-            <div className="rounded-xl bg-emerald-500/10 p-3 text-center">
-              <div className="font-display text-xl font-extrabold text-emerald-600">{relStats.totalHours || 0}h</div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400">Hours together</div>
-            </div>
-            <div className="rounded-xl bg-purple-500/10 p-3 text-center">
-              <div className="font-display text-xl font-extrabold text-purple-600">{relStats.totalSessions || 0}</div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400">Total sessions</div>
-            </div>
-            <div className="rounded-xl bg-accent/10 p-3 text-center">
-              {relStats.nextSession ? (
-                <>
-                  <div className="font-display text-sm font-extrabold text-amber-600">Upcoming</div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400">{relStats.nextSession.topic}</div>
-                </>
-              ) : (
-                <>
-                  <div className="font-display text-sm font-extrabold text-slate-400">No session</div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400">scheduled</div>
-                </>
-              )}
-            </div>
-          </div>
-          {relStats.nextSession && (
-            <div className="mt-3 flex items-center gap-3 rounded-xl border border-brand-200/60 bg-brand-500/5 p-3 dark:border-brand-500/20">
-              <FiCalendar className="text-brand-500" />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold">{relStats.nextSession.topic}</div>
-                <div className="text-xs text-slate-400">
-                  {formatDate(relStats.nextSession.date)} · {relStats.nextSession.startTime} · {relStats.nextSession.duration}min
-                </div>
-              </div>
-              <Tag tone={relStats.nextSession.meetingMode === 'online' ? 'brand' : 'amber'}>
-                {relStats.nextSession.meetingMode === 'online' ? 'Online' : 'Offline'}
-              </Tag>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {/* Tabs */}
-      <Tabs
-        tabs={[
-          { value: 'overview', label: `Overview` },
-          { value: 'skills', label: `Skills (${p.skills?.length || 0})` },
-          { value: 'badges', label: `Badges (${earnedBadges.length})` },
-          { value: 'reviews', label: `Reviews (${p.reviewCount || reviews.length})` },
-        ]}
-        active={tab}
-        onChange={setTab}
-        className="w-full sm:w-auto"
+      <ProfileHeader
+        user={profile}
+        isMe={isMe}
+        relationship={relationship}
+        onEdit={() => setEditOpen(true)}
+        onSave={() => setEditOpen(true)}
+        onAvatarChange={handleAvatarChange}
+        onCoverChange={handleCoverChange}
+        onConnect={handleConnect}
+        onMessage={handleMessage}
+        onSchedule={handleSchedule}
       />
 
+      {isMe && (
+        <div className="flex items-center gap-2">
+          <Button variant="primary" size="sm" onClick={() => setEditOpen(true)}>
+            <FiEdit3 className="h-4 w-4" /> Edit Profile
+          </Button>
+        </div>
+      )}
+
+      {!isMe && !relationship && (
+        <div className="flex items-center gap-2">
+          <Button variant="primary" size="sm" onClick={handleConnect}>
+            <FiUserPlus className="h-4 w-4" /> Connect
+          </Button>
+        </div>
+      )}
+
+      {!isMe && relationship?.status === 'pending' && (
+        <Card className="!p-3">
+          <span className="text-sm text-amber-600 dark:text-amber-400 font-medium">
+            Connection request pending
+          </span>
+        </Card>
+      )}
+
+      {!isMe && relationship?.status === 'accepted' && (
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={handleMessage}>
+            <FiMessageSquare className="h-4 w-4" /> Message
+          </Button>
+          <Button variant="secondary" size="sm" onClick={handleSchedule}>
+            <FiCalendar className="h-4 w-4" /> Schedule
+          </Button>
+        </div>
+      )}
+
+      <Tabs tabs={mainTabs} active={tab} onChange={setTab} className="w-full sm:w-auto" />
+
       {tab === 'overview' && (
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
-            <h2 className="mb-4 flex items-center gap-2 font-display font-bold"><FiBookOpen className="text-emerald-500" /> Can teach</h2>            <div className="flex flex-wrap gap-2">
-              {teach.map((s) => (
-                <span key={s.id || s._id} className="group inline-flex items-center gap-1.5 chip border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                  {s.icon} {s.name}
-                  {s.level && <span className="text-[10px] opacity-70">· {levelLabel(s.level)}</span>}
-                  {isMe && (
-                    <button onClick={() => handleRemoveSkill(s)} className="opacity-0 transition group-hover:opacity-100 hover:text-red-500"><FiX /></button>
-                  )}
-                </span>
-              ))}
-              {teach.length === 0 && <p className="text-sm text-slate-400">Nothing yet.</p>}
-            </div>
-            {isMe && <Button variant="ghost" className="mt-3" onClick={() => openPicker('teach')}>+ Add teaching skills</Button>}
-          </Card>
+        <div className="space-y-6">
+          <AboutSection user={profile} isMe={isMe} onEdit={() => setEditOpen(true)} />
 
-          <Card>
-            <h2 className="mb-4 flex items-center gap-2 font-display font-bold"><FiTarget className="text-accent" /> Want to learn</h2>
-            <div className="flex flex-wrap gap-2">
-              {learn.map((s) => (
-                <span key={s.id || s._id} className="group inline-flex items-center gap-1.5 chip border border-accent/40 bg-accent/10 text-amber-700 dark:text-amber-300">
-                  {s.icon} {s.name}
-                  {isMe && (
-                    <button onClick={() => handleRemoveSkill(s)} className="opacity-0 transition group-hover:opacity-100 hover:text-red-500"><FiX /></button>
-                  )}
-                </span>
-              ))}
-              {learn.length === 0 && <p className="text-sm text-slate-400">Nothing yet.</p>}
-            </div>
-            {isMe && <Button variant="ghost" className="mt-3" onClick={() => openPicker('learn')}>+ Add learning goals</Button>}
-          </Card>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <SkillShowcase
+              skills={profile.skills || []}
+              isMe={isMe}
+              onAddSkill={(type) => { setPickerType(type); setPickerOpen(true); }}
+              onEndorse={handleEndorse}
+              profileUserId={profile.id || profile._id}
+            />
+            <StatsGrid stats={stats} connections={connections} />
+          </div>
 
-          <Card>
-            <h2 className="mb-3 flex items-center gap-2 font-display font-bold"><span title="Profile trust score">🛡️</span> Profile trust</h2>
-            <div className="flex items-center gap-4">
-              <span
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-lg font-extrabold text-white"
-                style={{ background: `conic-gradient(#34d399 ${(p.trustScore || 0) * 3.6}deg, rgba(148,163,184,0.25) 0deg)` }}
-              >
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white dark:bg-slate-900">{p.trustScore || 0}</span>
-              </span>
-              <div className="text-sm">
-                <div className={`font-semibold ${trustLabel(p.trustScore || 0).color}`}>{trustLabel(p.trustScore || 0).label}</div>
-                <p className="mt-0.5 text-xs text-slate-400">Complete your profile and stay active to raise it.</p>
-              </div>
-            </div>
-            <ul className="mt-4 space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
-              {TRUST_BREAKDOWN.map((row) => (
-                <li key={row.label} className="flex items-center justify-between">
-                  <span>{row.label}</span>
-                  <span className="font-mono font-semibold text-slate-600 dark:text-slate-300">+{row.points}</span>
-                </li>
-              ))}
-            </ul>
-          </Card>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <AIInsights user={profile} stats={stats} />
+            <ConnectionStats connections={connections} />
+          </div>
 
-          <Card>
-            <h2 className="mb-3 font-display font-bold">Projects</h2>
-            {p.projects?.length ? (
-              <div className="space-y-2">
-                {p.projects.map((pr) => (
-                  <div key={pr._id} className="rounded-lg border border-slate-200/60 p-3 dark:border-white/10">
-                    <div className="text-sm font-semibold">{pr.title}</div>
-                    {pr.description && <div className="text-xs text-slate-400">{pr.description}</div>}
-                  </div>
-                ))}
-              </div>
-            ) : <p className="text-sm text-slate-400">No projects listed.</p>}
-          </Card>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <PortfolioSection projects={profile.projects || []} isMe={isMe} />
+            <CertificateShowcase certificates={certificates} />
+          </div>
 
-          <Card>
-            <h2 className="mb-3 font-display font-bold">Achievements</h2>
-            {p.achievements?.length ? (
-              <ul className="space-y-1.5 text-sm">
-                {p.achievements.map((a, i) => <li key={i} className="flex items-start gap-2"><FiCheckCircle className="mt-0.5 text-emerald-500" /> {a}</li>)}
-              </ul>
-            ) : <p className="text-sm text-slate-400">No achievements yet.</p>}
-          </Card>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <ReviewsSection reviews={reviews} stats={stats} ratingBreakdown={ratingBreakdown} />
+            <AchievementShowcase badges={badges} totalPoints={profile.points || 0} />
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <ActivityTimeline activities={activities} />
+            <RoadmapProgress user={profile} />
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <AvailabilitySection user={profile} />
+            <InterestsTags interests={profile.interests || []} isMe={isMe} onEdit={() => setEditOpen(true)} />
+          </div>
+
+          <EducationTimeline educationHistory={educationHistory} user={profile} isMe={isMe} />
+          <SocialLinksBar user={profile} />
+
+          {isMe && <ProfileCompletion user={profile} />}
         </div>
       )}
 
       {tab === 'skills' && (
-        <Card>
-          <div className="mb-5 flex items-center justify-between">
-            <h2 className="font-display text-lg font-bold">All skills</h2>
-            {isMe && <Button variant="secondary" onClick={() => openPicker('teach')}><FiEdit3 className="h-4 w-4" /> Manage skills</Button>}
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {p.skills?.map((s) => (
-              <div key={s.id || s._id} className="flex items-center justify-between rounded-xl border border-slate-200/60 p-4 dark:border-white/10">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{s.icon}</span>
-                  <div>
-                    <div className="font-semibold">{s.name}</div>
-                    <div className="text-xs text-slate-400">{levelLabel(s.level)}</div>
-                  </div>
+        <div className="space-y-6">
+          <SkillShowcase
+            skills={profile.skills || []}
+            isMe={isMe}
+            onAddSkill={(type) => { setPickerType(type); setPickerOpen(true); }}
+            onEndorse={handleEndorse}
+            profileUserId={profile.id || profile._id}
+          />
+          {endorsements.length > 0 && (
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <h3 className="font-display text-base font-extrabold text-slate-800 dark:text-white mb-3">
+                  Skill Endorsements
+                </h3>
+                <div className="space-y-2">
+                  {endorsements.map((end, i) => (
+                    <div key={end._id || i} className="glass rounded-xl p-3 flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                        {end.skillName || end.name}
+                      </span>
+                      <span className="text-xs text-slate-400">{end.count || 0} endorsements</span>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex gap-1.5">
-                  {s.canTeach && <Tag tone="green">Teach</Tag>}
-                  {s.wantToLearn && <Tag tone="amber">Learn</Tag>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {tab === 'badges' && (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {badges.map((b) => (
-            <motion.div
-              key={b.id}
-              whileHover={{ y: -4 }}
-              className={`glass rounded-2xl p-5 text-center ${b.earned ? '' : 'opacity-40 grayscale'}`}
-            >
-              <div className="text-4xl">{b.icon}</div>
-              <div className="mt-2 font-semibold">{b.name}</div>
-              <div className="mt-0.5 text-xs text-slate-400">{b.points} pts</div>
-              {b.earned && <Tag tone="green" className="mt-2">✓ Earned</Tag>}
-            </motion.div>
-          ))}
-        </div>
-      )}
-
-      {tab === 'reviews' && (
-        <div className="space-y-4">
-          {reviews.length === 0 ? (
-            <EmptyState icon="⭐" title="No reviews yet" description="Reviews appear after mentoring sessions." />
-          ) : (
-            reviews.map((r) => (
-              <Card key={r._id} className="!p-4">
-                <div className="flex items-center gap-3">
-                  <Avatar src={r.learner?.avatar} name={r.learner?.name} size="sm" />
-                  <div>
-                    <div className="text-sm font-semibold">{r.learner?.name}</div>
-                    <div className="text-xs text-slate-400">{timeAgo(r.createdAt)}</div>
-                  </div>
-                  <div className="ml-auto"><RatingStars rating={r.rating} /></div>
-                </div>
-                {r.feedback && <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">{r.feedback}</p>}
               </Card>
-            ))
+            </div>
           )}
         </div>
       )}
 
-      <SessionForm open={sessionOpen} onClose={() => setSessionOpen(false)} otherUser={p} />
+      {tab === 'badges' && (
+        <AchievementShowcase badges={badges} totalPoints={profile.points || 0} />
+      )}
 
-      <Modal open={pickerOpen} onClose={() => setPickerOpen(false)} title={`Add ${pickerType === 'teach' ? 'teaching' : 'learning'} skills`}>
+      {tab === 'reviews' && (
+        <ReviewsSection reviews={reviews} stats={stats} ratingBreakdown={ratingBreakdown} />
+      )}
+
+      {tab === 'settings' && isMe && (
+        <div className="space-y-6">
+          <PrivacySettings
+            privacy={profile.privacy || {}}
+            onSave={handlePrivacySave}
+          />
+          <Card>
+            <h2 className="font-display text-lg font-extrabold text-slate-800 dark:text-white mb-4">
+              Account
+            </h2>
+            <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/30 dark:bg-red-950/20">
+              <div>
+                <div className="text-sm font-semibold text-red-700 dark:text-red-300">Delete Account</div>
+                <div className="text-xs text-red-500 dark:text-red-400">
+                  Permanently delete your account and all associated data.
+                </div>
+              </div>
+              <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
+                <FiTrash2 className="h-4 w-4" /> Delete
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      <ProfileEditForm
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        user={profile}
+        onSaved={handleSaved}
+      />
+
+      <Modal open={pickerOpen} onClose={() => setPickerOpen(false)} title={`Add ${pickerType} skills`} size="lg">
         <SkillPicker
           skills={allSkills}
           selected={[]}
-          onChange={(ids) => {
-            if (ids.length) handleAddSkills(ids);
-          }}
+          onChange={(ids) => { if (ids.length) handleAddSkills(ids); }}
         />
-        <div className="mt-4 flex justify-end gap-2">
+        <div className="mt-4 flex justify-end">
           <Button variant="secondary" onClick={() => setPickerOpen(false)}>Close</Button>
         </div>
       </Modal>
+
+      <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete Account" size="sm">
+        <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+          Are you sure you want to delete your account? This action cannot be undone. All your data, skills, sessions, and connections will be permanently removed.
+        </p>
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setDeleteOpen(false)}>Cancel</Button>
+          <Button variant="danger" loading={deleting} onClick={handleDeleteAccount}>
+            <FiTrash2 className="h-4 w-4" /> Delete Account
+          </Button>
+        </div>
+      </Modal>
+
+      <SessionForm open={sessionOpen} onClose={() => setSessionOpen(false)} otherUser={profile} />
     </div>
   );
 }

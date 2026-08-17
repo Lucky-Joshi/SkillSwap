@@ -58,6 +58,27 @@ export const AVAILABILITY_OPTIONS = [
   { value: 'mornings', label: 'Mornings' },
 ];
 
+export const LEARNING_STYLE_OPTIONS = [
+  { value: 'visual', label: 'Visual', icon: '👁️' },
+  { value: 'auditory', label: 'Auditory', icon: '🎧' },
+  { value: 'reading', label: 'Reading/Writing', icon: '📝' },
+  { value: 'kinesthetic', label: 'Hands-on', icon: '🔧' },
+  { value: 'mixed', label: 'Mixed', icon: '🎯' },
+];
+
+export const LANGUAGE_OPTIONS = [
+  'English', 'Hindi', 'Spanish', 'French', 'German', 'Chinese', 'Japanese', 'Korean',
+  'Arabic', 'Portuguese', 'Russian', 'Italian', 'Dutch', 'Turkish', 'Bengali', 'Tamil',
+  'Telugu', 'Marathi', 'Gujarati', 'Kannada', 'Malayalam', 'Punjabi', 'Urdu', 'Other',
+];
+
+export const INTEREST_OPTIONS = [
+  'AI', 'Web Development', 'Cyber Security', 'Open Source', 'Hackathons', 'DSA',
+  'Cloud Computing', 'Mobile Development', 'Game Development', 'Data Science',
+  'Blockchain', 'IoT', 'Robotics', 'UI/UX Design', 'DevOps', 'Machine Learning',
+  'Networking', 'Security', 'AR/VR', 'Sustainability', 'FinTech', 'EdTech',
+];
+
 export const MEETING_TYPE_OPTIONS = [
   { value: 'googleMeet', label: 'Google Meet' },
   { value: 'zoom', label: 'Zoom' },
