@@ -2,13 +2,18 @@ const Notification = require('../models/Notification');
 const asyncHandler = require('../utils/asyncHandler');
 const { paginate, paginateResults } = require('../utils/paginate');
 
-// @route  GET /api/notifications?page=&limit=
+// @route  GET /api/notifications?page=&limit=&read=&type=
 // @access private
 const getNotifications = asyncHandler(async (req, res) => {
   const { page, limit, skip } = paginate(req);
+  const filter = { userId: req.user._id };
+  if (req.query.read === 'true') filter.read = true;
+  if (req.query.read === 'false') filter.read = false;
+  if (req.query.type && req.query.type.trim()) filter.type = req.query.type.trim();
+
   const [notifications, total, unreadCount] = await Promise.all([
-    Notification.find({ userId: req.user._id }).sort({ createdAt: -1 }).skip(skip).limit(limit),
-    Notification.countDocuments({ userId: req.user._id }),
+    Notification.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Notification.countDocuments(filter),
     Notification.countDocuments({ userId: req.user._id, read: false }),
   ]);
   res.json({

@@ -69,10 +69,10 @@ const getUser = asyncHandler(async (req, res, next) => {
   res.json({ success: true, user: profile });
 });
 
-// @route  GET /api/users?search=&skill=&department=&year=&availability=&page=&limit=
+// @route  GET /api/users?search=&skill=&department=&year=&availability=&college=&qualification=&mentor=&verified=&page=&limit=
 // @access private
 const searchUsers = asyncHandler(async (req, res) => {
-  const { search, skill, department, year, availability } = req.query;
+  const { search, skill, department, year, availability, college, qualification, mentor, verified } = req.query;
   const { page, limit, skip } = paginate(req);
   const filter = { _id: { $ne: req.user._id } };
 
@@ -80,26 +80,47 @@ const searchUsers = asyncHandler(async (req, res) => {
     filter.$or = [
       { name: { $regex: search, $options: 'i' } },
       { bio: { $regex: search, $options: 'i' } },
+      { college: { $regex: search, $options: 'i' } },
     ];
   }
   if (department) filter.department = department;
   if (year) filter.year = year;
   if (availability) filter.availability = availability;
+  if (college && college.trim()) filter.college = { $regex: college.trim(), $options: 'i' };
+  if (qualification && qualification.trim()) filter.qualification = { $regex: qualification.trim(), $options: 'i' };
+  if (verified === 'true') filter.isVerified = true;
 
   if (skill && skill.trim()) {
     const skillDoc = await Skill.findOne({
       $or: [{ name: { $regex: `^${skill.trim()}$`, $options: 'i' } }, { aliases: { $regex: `^${skill.trim()}$`, $options: 'i' } }],
     });
     if (skillDoc) {
-      const skillUsers = await UserSkill.find({ skillId: skillDoc._id }).distinct('userId');
+      const skillFilter = { skillId: skillDoc._id };
+      if (mentor === 'true') skillFilter.canTeach = true;
+      if (mentor === 'false') skillFilter.wantToLearn = true;
+      const skillUsers = await UserSkill.find(skillFilter).distinct('userId');
+      if (skillUsers.length === 0) {
+        return res.json({ success: true, users: [], meta: { total: 0, page, limit, totalPages: 1, hasMore: false } });
+      }
       filter._id = { $ne: req.user._id, $in: skillUsers };
     } else {
       return res.json({ success: true, users: [], meta: { total: 0, page, limit, totalPages: 1, hasMore: false } });
     }
+  } else if (mentor === 'true') {
+    const teacherIds = await UserSkill.find({ canTeach: true }).distinct('userId');
+    filter._id = { $ne: req.user._id, $in: teacherIds };
+  } else if (mentor === 'false') {
+    const learnerIds = await UserSkill.find({ wantToLearn: true }).distinct('userId');
+    filter._id = { $ne: req.user._id, $in: learnerIds };
   }
 
+  let sort = { isTest: 1, points: -1, rating: -1 };
+  if (req.query.sort === 'rating') sort = { isTest: 1, rating: -1 };
+  if (req.query.sort === 'name') sort = { isTest: 1, name: 1 };
+  if (req.query.sort === 'newest') sort = { isTest: 1, createdAt: -1 };
+
   const [users, total] = await Promise.all([
-    User.find(filter).sort({ isTest: 1, points: -1, rating: -1 }).skip(skip).limit(limit),
+    User.find(filter).sort(sort).skip(skip).limit(limit),
     User.countDocuments(filter),
   ]);
 

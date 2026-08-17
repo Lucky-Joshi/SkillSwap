@@ -6,10 +6,11 @@ const { paginate, paginateResults } = require('../utils/paginate');
 const { assertCanInteract, conversationKey, findRelationship } = require('../services/mentorshipService');
 const { isUserOnline } = require('../socket');
 
-// @route  GET /api/messages/conversations
+// @route  GET /api/messages/conversations?search=&unread=
 // @access private — only conversations with an active mentorship/peer relationship
 const getConversations = asyncHandler(async (req, res) => {
   const userId = req.user._id;
+  const { search, unread } = req.query;
 
   // Accepted + active connections only. Chat is never global.
   const relationships = await require('../models/Connection').find({
@@ -27,6 +28,17 @@ const getConversations = asyncHandler(async (req, res) => {
   }
   if (allowedIds.size === 0) return res.json({ success: true, conversations: [] });
 
+  // If searching by name, pre-filter allowed IDs to those matching the search
+  let filteredIds = allowedIds;
+  if (search && search.trim()) {
+    const matchingUsers = await User.find({
+      _id: { $in: [...allowedIds] },
+      name: { $regex: search.trim(), $options: 'i' },
+    }).select('_id');
+    filteredIds = new Set(matchingUsers.map((u) => String(u._id)));
+    if (filteredIds.size === 0) return res.json({ success: true, conversations: [] });
+  }
+
   const messages = await Message.find({
     $or: [{ sender: userId }, { receiver: userId }],
   })
@@ -36,7 +48,7 @@ const getConversations = asyncHandler(async (req, res) => {
   const map = new Map();
   for (const m of messages) {
     const otherId = String(m.sender) === String(userId) ? String(m.receiver) : String(m.sender);
-    if (!allowedIds.has(otherId)) continue;
+    if (!filteredIds.has(otherId)) continue;
     if (!map.has(otherId)) {
       map.set(otherId, { lastMessage: m, unread: !m.read && String(m.receiver) === String(userId) ? 1 : 0 });
     } else {
@@ -66,8 +78,12 @@ const getConversations = asyncHandler(async (req, res) => {
     });
   }
 
-  conversations.sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
-  res.json({ success: true, conversations });
+  // If unread filter, exclude conversations with no unread messages
+  let result = conversations;
+  if (unread === 'true') result = conversations.filter((c) => c.unread > 0);
+
+  result.sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
+  res.json({ success: true, conversations: result });
 });
 
 // @route  GET /api/messages/:userId?page=&limit=

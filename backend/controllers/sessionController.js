@@ -107,17 +107,40 @@ const createSession = asyncHandler(async (req, res, next) => {
   res.status(201).json({ success: true, session: await sessionLabel(session, req.user._id) });
 });
 
-// @route  GET /api/session?status=&page=
+// @route  GET /api/session?status=&meetingMode=&role=&search=&dateFrom=&dateTo=&page=
 // @access private
 const getSessions = asyncHandler(async (req, res) => {
   const { page, limit, skip } = paginate(req);
+  const { status, meetingMode, role, search, dateFrom, dateTo } = req.query;
   const filter = { $or: [{ mentorId: req.user._id }, { learnerId: req.user._id }] };
-  if (req.query.status && ['pending', 'confirmed', 'completed', 'cancelled'].includes(req.query.status)) {
-    filter.status = req.query.status;
+
+  if (status && ['pending', 'confirmed', 'completed', 'cancelled'].includes(status)) {
+    filter.status = status;
+  }
+  if (meetingMode && ['online', 'offline'].includes(meetingMode)) {
+    filter.meetingMode = meetingMode;
+  }
+  if (role === 'mentor') {
+    filter.mentorId = req.user._id;
+    delete filter.$or;
+  } else if (role === 'learner') {
+    filter.learnerId = req.user._id;
+    delete filter.$or;
+  }
+  if (search && search.trim()) {
+    filter.topic = { $regex: search.trim(), $options: 'i' };
+  }
+  if (dateFrom || dateTo) {
+    filter.date = {};
+    if (dateFrom) filter.date.$gte = new Date(dateFrom);
+    if (dateTo) filter.date.$lte = new Date(dateTo);
   }
 
+  let sort = { date: -1 };
+  if (req.query.sort === 'date_asc') sort = { date: 1 };
+
   const [sessions, total] = await Promise.all([
-    Session.find(filter).sort({ date: 1 }).skip(skip).limit(limit),
+    Session.find(filter).sort(sort).skip(skip).limit(limit),
     Session.countDocuments(filter),
   ]);
 
