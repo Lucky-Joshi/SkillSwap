@@ -4,34 +4,50 @@ const config = require('./config/env');
 const connectDB = require('./config/db');
 const { initSocket } = require('./socket');
 const { startReminderScheduler } = require('./services/reminderService');
+const { registerEventHandlers } = require('./events/handlers');
+const logger = require('./utils/logger');
 
 const start = async () => {
   await connectDB();
 
+  registerEventHandlers();
+
   const server = http.createServer(app);
-  initSocket(server);
+  const io = initSocket(server);
 
   server.listen(config.port, () => {
-    console.log(`[skillswap] API running on http://localhost:${config.port}`);
-    console.log(`[skillswap] AI service: ${config.aiServiceUrl}`);
+    logger.info(`SkillSwap API running on http://localhost:${config.port}`);
+    logger.info(`AI service: ${config.aiServiceUrl}`);
+    logger.info(`Environment: ${config.env}`);
   });
 
   startReminderScheduler();
-  console.log('[skillswap] session reminder scheduler started');
 
   const shutdown = async (signal) => {
-    console.log(`\n[skillswap] ${signal} received. Shutting down gracefully...`);
+    logger.info(`${signal} received. Shutting down gracefully...`);
     server.close(async () => {
-      await require('mongoose').disconnect();
+      try {
+        const mongoose = require('mongoose');
+        await mongoose.disconnect();
+        logger.info('MongoDB disconnected');
+      } catch (err) {
+        logger.error('Error disconnecting MongoDB:', err.message);
+      }
       process.exit(0);
     });
-    setTimeout(() => process.exit(1), 10000).unref();
+    setTimeout(() => {
+      logger.error('Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000).unref();
   };
 
   process.on('SIGINT', () => shutdown('SIGINT'));
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('unhandledRejection', (err) => {
-    console.error('[skillswap] Unhandled rejection:', err);
+    logger.error('Unhandled rejection:', err);
+  });
+  process.on('uncaughtException', (err) => {
+    logger.error('Uncaught exception:', err);
     server.close(() => process.exit(1));
   });
 };

@@ -16,8 +16,8 @@ const COMMUNITY = [
 ];
 
 const LEGAL = [
-  { to: '#', label: 'Privacy Policy' },
-  { to: '#', label: 'Terms of Service' },
+  { to: ROUTES.PRIVACY, label: 'Privacy Policy' },
+  { to: ROUTES.TERMS, label: 'Terms of Service' },
 ];
 
 export default function PublicFooter() {
@@ -39,7 +39,7 @@ export default function PublicFooter() {
               peers, teach what you know.
             </p>
             <div className="mt-6 flex gap-3">
-              <a href="https://github.com" target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 p-2 text-slate-400 transition hover:text-brand-600 dark:border-white/10 dark:hover:text-brand-300">
+              <a href="https://github.com/Lucky-Joshi/SkillSwap" target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 p-2 text-slate-400 transition hover:text-brand-600 dark:border-white/10 dark:hover:text-brand-300">
                 <FiGithub className="h-5 w-5" />
               </a>
               <a href="https://twitter.com" target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 p-2 text-slate-400 transition hover:text-brand-600 dark:border-white/10 dark:hover:text-brand-300">
@@ -48,7 +48,7 @@ export default function PublicFooter() {
               <a href="https://linkedin.com" target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 p-2 text-slate-400 transition hover:text-brand-600 dark:border-white/10 dark:hover:text-brand-300">
                 <FiLinkedin className="h-5 w-5" />
               </a>
-              <a href="mailto:hello@skillswap.dev" className="rounded-lg border border-slate-200 p-2 text-slate-400 transition hover:text-brand-600 dark:border-white/10 dark:hover:text-brand-300">
+              <a href="mailto:developer.lucky.joshi@gmail.com" className="rounded-lg border border-slate-200 p-2 text-slate-400 transition hover:text-brand-600 dark:border-white/10 dark:hover:text-brand-300">
                 <FiMail className="h-5 w-5" />
               </a>
             </div>

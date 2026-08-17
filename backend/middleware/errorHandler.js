@@ -1,5 +1,6 @@
 const config = require('../config/env');
-const AppError = require('../utils/AppError');
+const { AppError } = require('../utils/errors');
+const logger = require('../utils/logger');
 
 const errorHandler = (err, req, res, next) => {
   let error = { ...err };
@@ -9,10 +10,13 @@ const errorHandler = (err, req, res, next) => {
     error = new AppError(`Invalid ${err.path}: ${err.value}`, 400);
   }
   if (err.name === 'ValidationError') {
-    error = new AppError(Object.values(err.errors).map((e) => e.message).join('. '), 400);
+    const errors = Object.values(err.errors).map((e) => e.message);
+    error = new AppError(errors.join('. '), 400);
+    error.errors = errors;
   }
   if (err.code === 11000) {
-    error = new AppError('Duplicate value. That record already exists.', 409);
+    const field = Object.keys(err.keyValue || {})[0] || 'field';
+    error = new AppError(`Duplicate value for "${field}". That record already exists.`, 409);
   }
   if (err.name === 'MulterError') {
     error = new AppError(err.message, 400);
@@ -21,11 +25,25 @@ const errorHandler = (err, req, res, next) => {
   const statusCode = error.statusCode || 500;
   const isDev = config.env === 'development';
 
+  if (statusCode >= 500) {
+    logger.error(`${req.method} ${req.originalUrl}`, {
+      statusCode,
+      message: error.message,
+      stack: err.stack,
+      requestId: req.id,
+    });
+  } else {
+    logger.warn(`${req.method} ${req.originalUrl} - ${statusCode}`, {
+      message: error.message,
+      requestId: req.id,
+    });
+  }
+
   res.status(statusCode).json({
     success: false,
-    status: error.status || 'error',
     message: error.message || 'Internal Server Error',
-    ...(isDev ? { stack: err.stack } : {}),
+    ...(error.errors && { errors: error.errors }),
+    ...(isDev && { stack: err.stack }),
   });
 };
 

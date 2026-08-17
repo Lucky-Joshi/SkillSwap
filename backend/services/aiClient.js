@@ -1,5 +1,7 @@
 const axios = require('axios');
 const config = require('../config/env');
+const logger = require('../utils/logger');
+const { recordAiRequest } = require('../utils/metrics');
 
 const client = axios.create({
   baseURL: config.aiServiceUrl,
@@ -16,20 +18,22 @@ const isUp = async () => {
 };
 
 const call = async (path, payload) => {
-  const { data } = await client.post(path, payload);
-  return data;
+  const start = Date.now();
+  try {
+    const { data } = await client.post(path, payload);
+    recordAiRequest(true, Date.now() - start);
+    return data;
+  } catch (err) {
+    recordAiRequest(false, Date.now() - start);
+    throw err;
+  }
 };
 
-/**
- * tryAi — call the FastAPI service, but degrade gracefully to a heuristic
- * fallback when the service is down or slow. Keeps the prototype fully
- * functional without the Python stack running.
- */
 const tryAi = async (path, payload, fallback) => {
   try {
     return await call(path, payload);
   } catch (err) {
-    console.warn(`[ai-client] ${path} unavailable (${err.message}). Using heuristic fallback.`);
+    logger.warn(`AI service ${path} unavailable: ${err.message}. Using heuristic fallback.`);
     return fallback();
   }
 };

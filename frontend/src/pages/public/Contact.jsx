@@ -90,8 +90,8 @@ export default function Contact() {
 
         <div className="mt-8 grid gap-4 sm:grid-cols-3">
           {[
-            { icon: FiMail, label: 'Email', value: 'hello@skillswap.dev' },
-            { icon: FiUser, label: 'GitHub', value: 'github.com/skillswap' },
+            { icon: FiMail, label: 'Email', value: 'developer.lucky.joshi@gmail.com' },
+            { icon: FiUser, label: 'GitHub', value: 'github.com/Lucky-Joshi/SkillSwap' },
             { icon: FiMessageSquare, label: 'Response time', value: '< 24 hours' },
           ].map((item) => (
             <div key={item.label} className="glass rounded-2xl p-4 text-center">

@@ -4,12 +4,16 @@ Represents prerequisite/relationship edges between skills so that a mentor
 who knows Next.js can still be recommended to a React learner:
 
     JavaScript -> React -> Redux -> Next.js
+
+The graph is built once and cached for the lifetime of the process.
 """
 from __future__ import annotations
 
 from typing import Dict, List
 
 import networkx as nx
+
+from cache import skill_graph_cache
 
 RELATIONS: Dict[str, List[str]] = {
     "JavaScript": ["React", "Node.js", "Next.js", "Vue.js", "TypeScript"],
@@ -77,6 +81,11 @@ def normalize(skill: str) -> str:
 
 
 def related(skill: str, depth: int = 2, limit: int = 10) -> List[str]:
+    cache_key = f"related:{skill}:{depth}:{limit}"
+    cached = skill_graph_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     g = _build()
     skill = normalize(skill)
     if skill not in g:
@@ -89,16 +98,12 @@ def related(skill: str, depth: int = 2, limit: int = 10) -> List[str]:
             out.append(target)
         if len(out) >= limit:
             break
+
+    skill_graph_cache.set(cache_key, out)
     return out
 
 
 def can_cover(teacher_skill: str, learner_skill: str, hops: int = 2) -> bool:
-    """True if knowing teacher_skill reasonably covers learner_skill via graph.
-
-    Edges point from prerequisite -> advanced, so a teacher who knows Next.js
-    (a descendant of React) can still help a React learner. The check works in
-    both directions within `hops` steps.
-    """
     g = _build()
     teacher = normalize(teacher_skill)
     learner = normalize(learner_skill)
@@ -115,8 +120,15 @@ def can_cover(teacher_skill: str, learner_skill: str, hops: int = 2) -> bool:
 
 
 def graph_payload() -> dict:
+    cache_key = "graph:full"
+    cached = skill_graph_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     g = _build()
-    return {
+    result = {
         "nodes": [{"id": n} for n in g.nodes],
         "edges": [{"source": s, "target": t} for s, t in g.edges],
     }
+    skill_graph_cache.set(cache_key, result)
+    return result

@@ -14,6 +14,20 @@ const config = {
   uploadDir: process.env.UPLOAD_DIR || 'uploads',
   demoMode: process.env.DEMO_MODE === 'true',
   emailVerifyBaseUrl: process.env.EMAIL_VERIFY_BASE_URL || 'http://localhost:5173/verify-email',
+  corsOrigins: process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map((u) => u.trim())
+    : [process.env.CLIENT_URL || 'http://localhost:5173'],
+  logLevel: process.env.LOG_LEVEL || 'debug',
+  rateLimit: {
+    global: { windowMs: 15 * 60 * 1000, max: parseInt(process.env.RATE_LIMIT_GLOBAL, 10) || 500 },
+    auth: { windowMs: 15 * 60 * 1000, max: parseInt(process.env.RATE_LIMIT_AUTH, 10) || 30 },
+    ai: { windowMs: 15 * 60 * 1000, max: parseInt(process.env.RATE_LIMIT_AI, 10) || 20 },
+  },
+  ai: {
+    similarityThreshold: parseFloat(process.env.AI_SIMILARITY_THRESHOLD) || 0.3,
+    topN: parseInt(process.env.AI_TOP_N, 10) || 10,
+    timeout: parseInt(process.env.AI_SERVICE_TIMEOUT, 10) || 4000,
+  },
 };
 
 module.exports = config;

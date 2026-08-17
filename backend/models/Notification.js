@@ -5,7 +5,11 @@ const notificationSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     type: {
       type: String,
-      enum: ['match', 'mentorship', 'message', 'session', 'reminder', 'review', 'badge', 'system'],
+      enum: [
+        'connection_request', 'connection_accepted', 'connection_declined',
+        'session_booked', 'session_confirmed', 'session_completed', 'session_cancelled',
+        'review_received', 'badge_earned', 'message_received', 'reminder', 'system',
+      ],
       default: 'system',
     },
     title: { type: String, required: true },
@@ -18,5 +22,7 @@ const notificationSchema = new mongoose.Schema(
 );
 
 notificationSchema.index({ userId: 1, read: 1, createdAt: -1 });
+notificationSchema.index({ userId: 1, type: 1 });
+notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7776000 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

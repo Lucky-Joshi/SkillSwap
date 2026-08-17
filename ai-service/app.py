@@ -11,11 +11,16 @@ Endpoints:
 """
 from __future__ import annotations
 
+import os
+import sys
+import time
 from typing import Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from config import config
 import recommendation
 import roadmap
 import skill_graph
@@ -29,13 +34,44 @@ app = FastAPI(
     description="Semantic skill matching, roadmaps, resume parsing and skill graphs.",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+_start_time = time.time()
+
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "skillswap-ai"}
+    import psutil if_available
+    mem = {}
+    try:
+        import psutil
+        process = psutil.Process(os.getpid())
+        mem_info = process.memory_info()
+        mem = {
+            "rss_mb": round(mem_info.rss / 1024 / 1024, 1),
+            "vms_mb": round(mem_info.vms / 1024 / 1024, 1),
+        }
+    except ImportError:
+        pass
+
+    return {
+        "status": "ok",
+        "service": "skillswap-ai",
+        "version": "1.0.0",
+        "uptime_seconds": round(time.time() - _start_time, 1),
+        "embedding_model": config.embedding_model,
+        "use_sbert": config.use_sbert,
+        "graph_nodes": len(skill_graph._build().nodes) if skill_graph._graph else 0,
+        "memory": mem,
+    }
 
 
-# ---------- models ----------
 class Candidate(BaseModel):
     id: str
     skills: Optional[List[str]] = []
@@ -75,10 +111,9 @@ class RelatedRequest(BaseModel):
     skill: str
 
 
-# ---------- endpoints ----------
 @app.post("/recommendations")
 def recommendations(req: RecommendationRequest):
-    candidates = [c.dict() for c in req.candidates]
+    candidates = [c.model_dump() for c in req.candidates]
     user = dict(req.user)
     results = recommendation.rank_candidates(user, candidates, mode=req.mode, limit=req.limit)
     return {"mode": req.mode, "count": len(results), "results": results}

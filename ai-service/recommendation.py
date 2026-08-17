@@ -13,12 +13,16 @@ can be recommended to a React learner.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import Dict, List
 
 import numpy as np
 
 from embeddings import overlap
 from similarity import match_sets, skill_similarity
+from cache import recommendation_cache
+from config import config
 import skill_graph
 
 AVAILABILITY_WEIGHT = {"anytime": 1.0, "evenings": 0.9, "mornings": 0.8, "weekends": 0.8, "weekdays": 0.7, "": 0.4}
@@ -26,7 +30,6 @@ YEAR_VALUE = {"1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "Graduate": 5, "": 0}
 
 
 def _semantic_match(learn: List[str], teach: List[str]) -> tuple[float, List[str]]:
-    """Semantic skill-match score + matched reasons (with graph boost)."""
     if not learn or not teach:
         return 0.0, []
     reasons = []
@@ -35,7 +38,6 @@ def _semantic_match(learn: List[str], teach: List[str]) -> tuple[float, List[str
         best_score = 0.0
         for candidate in teach:
             s = skill_similarity(skill, candidate)
-            # graph boost: teacher knows a downstream skill
             if skill_graph.can_cover(candidate, skill, hops=2):
                 s = max(s, 0.75)
             best_score = max(best_score, s)
@@ -45,12 +47,24 @@ def _semantic_match(learn: List[str], teach: List[str]) -> tuple[float, List[str
     return score_sum / max(len(learn), 1), reasons
 
 
+def _cache_key(user: Dict, candidates: List[Dict], mode: str) -> str:
+    user_hash = hashlib.md5(json.dumps(user, sort_keys=True, default=str).encode()).hexdigest()[:12]
+    cand_ids = sorted([c.get("id", "") for c in candidates])
+    cand_hash = hashlib.md5(json.dumps(cand_ids).encode()).hexdigest()[:12]
+    return f"rec:{user_hash}:{cand_hash}:{mode}"
+
+
 def rank_candidates(
     user: Dict,
     candidates: List[Dict],
     mode: str = "mentors",
     limit: int = 20,
 ) -> List[Dict]:
+    cache_key = _cache_key(user, candidates, mode)
+    cached = recommendation_cache.get(cache_key)
+    if cached is not None:
+        return cached[:limit]
+
     results = []
     for cand in candidates:
         cand_teach = cand.get("canTeach") or cand.get("skills") or []
@@ -69,12 +83,12 @@ def rank_candidates(
         department = 1.0 if user.get("department") and cand.get("department") and str(user["department"]).lower() == str(cand["department"]).lower() else 0.0
 
         score = (
-            skill_match * 40
-            + mutual * 20
-            + availability * 15
-            + teaching_rating * 10
-            + experience * 10
-            + department * 5
+            skill_match * config.weight_skill_match
+            + mutual * config.weight_mutual_interest
+            + availability * config.weight_availability
+            + teaching_rating * config.weight_rating
+            + experience * config.weight_experience
+            + department * config.weight_department
         )
         score = round(max(0.0, min(score, 100.0)), 1)
 
@@ -96,4 +110,5 @@ def rank_candidates(
         )
 
     results.sort(key=lambda r: r["score"], reverse=True)
+    recommendation_cache.set(cache_key, results)
     return results[:limit]

@@ -150,4 +150,13 @@ userSchema.methods.updateRating = function updateRating() {
   return this;
 };
 
+userSchema.index({ email: 1 });
+userSchema.index({ name: 'text', bio: 'text' });
+userSchema.index({ college: 1 });
+userSchema.index({ role: 1 });
+userSchema.index({ points: -1 });
+userSchema.index({ rating: -1 });
+userSchema.index({ createdAt: -1 });
+userSchema.index({ isTest: 1 });
+
 module.exports = mongoose.model('User', userSchema);

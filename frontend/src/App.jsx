@@ -10,6 +10,7 @@ import AuthLayout from './layouts/AuthLayout';
 import ProtectedRoute from './routes/ProtectedRoute';
 import PublicOnlyRoute from './routes/PublicOnlyRoute';
 import ErrorBoundary from './components/ui/ErrorBoundary';
+import ScrollToTop from './components/ui/ScrollToTop';
 import PageSkeleton from './components/ui/PageSkeleton';
 
 const PageLoader = () => <PageSkeleton />;
@@ -31,6 +32,8 @@ const AIPage = Loadable(lazy(() => import('./pages/public/AI')));
 const About = Loadable(lazy(() => import('./pages/public/About')));
 const FAQ = Loadable(lazy(() => import('./pages/public/FAQ')));
 const Contact = Loadable(lazy(() => import('./pages/public/Contact')));
+const Privacy = Loadable(lazy(() => import('./pages/public/Privacy')));
+const Terms = Loadable(lazy(() => import('./pages/public/Terms')));
 
 const Login = Loadable(lazy(() => import('./pages/auth/Login')));
 const Register = Loadable(lazy(() => import('./pages/auth/Register')));
@@ -79,6 +82,7 @@ export default function App() {
     <Suspense fallback={<PageLoader />}>
       <AnimatePresence mode="wait">
         <ErrorBoundary>
+          <ScrollToTop />
           <Routes>
             <Route element={<PublicLayout />}>
               <Route path="/" element={<Home />} />
@@ -88,6 +92,8 @@ export default function App() {
               <Route path="/about" element={<About />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
             </Route>
 
             <Route path="/login" element={<AuthPage title="Welcome back" subtitle="Log in to continue learning and teaching."><Login /></AuthPage>} />

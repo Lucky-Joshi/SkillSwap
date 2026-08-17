@@ -9,7 +9,13 @@
     "start": "node server.js",
     "seed": "node scripts/seed.js"
   },
-  "keywords": ["skillswap", "peer-learning", "mentorship", "express", "socket.io"],
+  "keywords": [
+    "skillswap",
+    "peer-learning",
+    "mentorship",
+    "express",
+    "socket.io"
+  ],
   "license": "MIT",
   "dependencies": {
     "axios": "^1.7.4",
@@ -26,6 +32,8 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
     "socket.io": "^4.7.5",
+    "uuid": "^14.0.1",
+    "winston": "^3.19.0",
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {

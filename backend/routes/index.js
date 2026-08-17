@@ -16,10 +16,11 @@ const aiRoutes = require('./aiRoutes');
 const dashboardRoutes = require('./dashboardRoutes');
 const institutionRoutes = require('./institutionRoutes');
 const adminRoutes = require('./adminRoutes');
+const healthRoutes = require('./healthRoutes');
 
 const router = express.Router();
 
-router.get('/health', (req, res) => res.json({ success: true, status: 'ok', service: 'skillswap-backend' }));
+router.use('/health', healthRoutes);
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);

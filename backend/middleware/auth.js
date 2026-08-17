@@ -1,5 +1,5 @@
 const { verifyToken } = require('../utils/token');
-const AppError = require('../utils/AppError');
+const { AuthenticationError, AuthorizationError } = require('../utils/errors');
 const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 
@@ -12,19 +12,19 @@ const protect = asyncHandler(async (req, res, next) => {
   }
 
   if (!token) {
-    throw new AppError('Not authorized. Please log in.', 401);
+    throw new AuthenticationError('Not authorized. Please log in.');
   }
 
   let decoded;
   try {
     decoded = verifyToken(token);
   } catch (err) {
-    throw new AppError('Session expired or invalid. Please log in again.', 401);
+    throw new AuthenticationError('Session expired or invalid. Please log in again.');
   }
 
-  const user = await User.findById(decoded.id);
+  const user = await User.findById(decoded.id).select('_id name email role avatar verified');
   if (!user) {
-    throw new AppError('The user belonging to this token no longer exists.', 401);
+    throw new AuthenticationError('The user belonging to this token no longer exists.');
   }
 
   req.user = user;
@@ -33,7 +33,7 @@ const protect = asyncHandler(async (req, res, next) => {
 
 const restrictTo = (...roles) => (req, res, next) => {
   if (!req.user || !roles.includes(req.user.role)) {
-    return res.status(403).json({ success: false, message: 'You do not have permission to perform this action.' });
+    throw new AuthorizationError('You do not have permission to perform this action.');
   }
   next();
 };

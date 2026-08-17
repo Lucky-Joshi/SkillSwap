@@ -1,4 +1,4 @@
-"""Embedding utilities with graceful degradation.
+"""Embedding utilities with graceful degradation and caching.
 
 If `sentence-transformers` is installed we use a real SBERT model for
 semantic similarity. Otherwise we fall back to TF-IDF (scikit-learn) or a
@@ -7,11 +7,16 @@ token-overlap Jaccard score so the service works out of the box.
 from __future__ import annotations
 
 import re
+import threading
 from typing import List
 
 import numpy as np
 
+from cache import embedding_cache
+
 _encoder = None
+_encoder_lock = threading.Lock()
+_encoder_loaded = False
 
 
 def _normalize(text: str) -> str:
@@ -19,47 +24,64 @@ def _normalize(text: str) -> str:
 
 
 def load_encoder():
-    global _encoder
-    if _encoder is not None:
+    global _encoder, _encoder_loaded
+    if _encoder_loaded:
         return _encoder
-    try:
-        from sentence_transformers import SentenceTransformer
-
-        _encoder = SentenceTransformer("all-MiniLM-L6-v2")
-        print("[embeddings] SBERT model loaded: all-MiniLM-L6-v2")
-    except Exception as exc:  # pragma: no cover
-        print(f"[embeddings] sentence-transformers unavailable ({exc}); using TF-IDF")
-        _encoder = False
+    with _encoder_lock:
+        if _encoder_loaded:
+            return _encoder
+        try:
+            from sentence_transformers import SentenceTransformer
+            _encoder = SentenceTransformer("all-MiniLM-L6-v2")
+            print("[embeddings] SBERT model loaded: all-MiniLM-L6-v2")
+        except Exception as exc:
+            print(f"[embeddings] sentence-transformers unavailable ({exc}); using TF-IDF")
+            _encoder = False
+        _encoder_loaded = True
     return _encoder
 
 
 def encode(texts: List[str]) -> np.ndarray:
-    """Return a (n, d) embedding matrix. Falls back to TF-IDF vectors."""
+    cache_key = f"encode:{hash(tuple(sorted(texts)))}"
+    cached = embedding_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     encoder = load_encoder()
     if encoder:
-        return np.asarray(encoder.encode(texts, normalize_embeddings=True))
+        result = np.asarray(encoder.encode(texts, normalize_embeddings=True))
+    else:
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        vectorizer = TfidfVectorizer(token_pattern=r"[a-z0-9]+", stop_words="english")
+        cleaned = [_normalize(t) for t in texts]
+        result = np.asarray(vectorizer.fit_transform(cleaned).toarray())
 
-    from sklearn.feature_extraction.text import TfidfVectorizer
-
-    vectorizer = TfidfVectorizer(token_pattern=r"[a-z0-9]+", stop_words="english")
-    cleaned = [_normalize(t) for t in texts]
-    return np.asarray(vectorizer.fit_transform(cleaned).toarray())
+    embedding_cache.set(cache_key, result)
+    return result
 
 
 def cosine(a: np.ndarray, b: np.ndarray) -> float:
     if a.size == 0 or b.size == 0:
         return 0.0
-    a = a / np.linalg.norm(a) if np.linalg.norm(a) else a
-    b = b / np.linalg.norm(b) if np.linalg.norm(b) else b
-    return float(np.dot(a, b))
+    norm_a = np.linalg.norm(a)
+    norm_b = np.linalg.norm(b)
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return float(np.dot(a / norm_a, b / norm_b))
 
 
 def text_similarity(a: str, b: str) -> float:
-    """Semantic similarity of two strings in [0, 1]."""
-    if a.lower() == b.lower():
+    cache_key = f"tsim:{a.lower().strip()}:{b.lower().strip()}"
+    cached = embedding_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    if a.lower().strip() == b.lower().strip():
         return 1.0
     embeddings = encode([a, b])
-    return max(0.0, cosine(embeddings[0], embeddings[1]))
+    score = max(0.0, cosine(embeddings[0], embeddings[1]))
+    embedding_cache.set(cache_key, score)
+    return score
 
 
 def jaccard(a: List[str], b: List[str]) -> float:
