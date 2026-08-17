@@ -4,10 +4,14 @@ const config = require('../config/env');
 const User = require('../models/User');
 const Message = require('../models/Message');
 const { notify } = require('../services/notificationService');
+const { assertCanInteract, conversationKey } = require('../services/mentorshipService');
 
 let io = null;
 
+const onlineUsers = new Set();
+
 const getIO = () => io;
+const isUserOnline = (userId) => onlineUsers.has(String(userId));
 
 const initSocket = (server) => {
   io = new Server(server, {
@@ -35,7 +39,9 @@ const initSocket = (server) => {
   io.on('connection', (socket) => {
     const userId = socket.userId;
     socket.join(`user:${userId}`);
-    console.log(`[socket] user connected: ${userId}`);
+    onlineUsers.add(userId);
+    socket.broadcast.emit('user:online', { userId });
+    console.log(`[socket] user connected: ${userId} (online: ${onlineUsers.size})`);
 
     // Mark a conversation as read when the client opens it
     socket.on('messages:read', async ({ from }, ack) => {
@@ -51,33 +57,31 @@ const initSocket = (server) => {
       }
     });
 
-    // Send + persist a chat message
-    socket.on('message:send', async ({ receiver, message, matchId }, ack) => {
+    // Send + persist a chat message (only within accepted relationships)
+    socket.on('message:send', async ({ receiver, message }, ack) => {
       try {
         if (!receiver || !message?.trim()) {
           return ack?.({ success: false, error: 'receiver and message are required' });
         }
+        const relationship = await assertCanInteract(userId, receiver);
+
         const doc = await Message.create({
           sender: userId,
           receiver,
+          conversationId: conversationKey(userId, receiver),
           message: message.trim().slice(0, 2000),
-          matchId: matchId || undefined,
+          matchId: relationship._id,
         });
 
-        io.to(`user:${receiver}`).emit('message:new', {
+        const payload = {
           ...doc.toObject(),
           sender: String(doc.sender),
           receiver: String(doc.receiver),
           matchId: doc.matchId ? String(doc.matchId) : null,
-        });
+        };
 
-        // Also echo back to the sender (other tabs)
-        io.to(`user:${userId}`).emit('message:sent', {
-          ...doc.toObject(),
-          sender: String(doc.sender),
-          receiver: String(doc.receiver),
-          matchId: doc.matchId ? String(doc.matchId) : null,
-        });
+        io.to(`user:${receiver}`).emit('message:new', payload);
+        io.to(`user:${userId}`).emit('message:sent', payload);
 
         await notify({
           userId: receiver,
@@ -102,11 +106,13 @@ const initSocket = (server) => {
     });
 
     socket.on('disconnect', () => {
-      console.log(`[socket] user disconnected: ${userId}`);
+      onlineUsers.delete(userId);
+      socket.broadcast.emit('user:offline', { userId });
+      console.log(`[socket] user disconnected: ${userId} (online: ${onlineUsers.size})`);
     });
   });
 
   return io;
 };
 
-module.exports = { initSocket, getIO };
+module.exports = { initSocket, getIO, isUserOnline, onlineUsers };

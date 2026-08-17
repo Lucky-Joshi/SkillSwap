@@ -6,6 +6,7 @@ const { notify } = require('../services/notificationService');
 const { evaluateBadges } = require('../services/badgeService');
 const { queueTrustRefresh } = require('../services/trustService');
 const { paginate, paginateResults } = require('../utils/paginate');
+const { relationshipLabel, listMentorships, cancelRelationship } = require('../services/mentorshipService');
 
 const matchLabel = async (match, viewerId) => {
   const [mentor, learner] = await Promise.all([
@@ -18,6 +19,8 @@ const matchLabel = async (match, viewerId) => {
   return {
     id: match._id,
     status: match.status,
+    active: match.active,
+    acceptedAt: match.acceptedAt,
     compatibilityScore: match.compatibilityScore,
     requestedBy: match.requestedBy,
     createdAt: match.createdAt,
@@ -57,7 +60,12 @@ const requestMatch = asyncHandler(async (req, res, next) => {
       { mentorId: target._id, learnerId: req.user._id },
     ],
   });
-  if (existing) throw new AppError('A match with this user already exists.', 409);
+  if (existing) {
+    if (existing.status === 'pending' || existing.status === 'accepted') {
+      throw new AppError('A request with this user already exists.', 409);
+    }
+    await existing.deleteOne();
+  }
 
   const [mentorId, learnerId] =
     requestedBy === 'learner' ? [target._id, req.user._id] : [req.user._id, target._id];
@@ -72,9 +80,9 @@ const requestMatch = asyncHandler(async (req, res, next) => {
 
   await notify({
     userId: target._id,
-    type: 'match',
-    title: 'New learning request',
-    message: `${req.user.name} wants to connect with you.`,
+    type: 'mentorship',
+    title: 'Mentorship request',
+    message: `${req.user.name} has requested you as a mentor.`,
     data: { matchId: match._id },
   });
 
@@ -93,15 +101,19 @@ const acceptMatch = asyncHandler(async (req, res, next) => {
   if (match.status !== 'pending') throw new AppError('This match is already responded to.', 400);
 
   match.status = 'accepted';
+  match.active = true;
   match.respondedAt = new Date();
+  match.acceptedAt = new Date();
   await match.save();
 
   const otherId = String(match.mentorId) === String(req.user._id) ? match.learnerId : match.mentorId;
+  const isRequester = String(match.requestedBy) === 'learner' ? otherId : match.mentorId;
+
   await notify({
     userId: otherId,
-    type: 'match',
-    title: 'Request accepted! 🎉',
-    message: `${req.user.name} accepted your learning request. Chat is open.`,
+    type: 'mentorship',
+    title: 'Mentorship accepted 🎉',
+    message: `${req.user.name} accepted your request. Schedule your first session to unlock chat.`,
     data: { matchId: match._id },
   });
   await evaluateBadges(req.user._id);
@@ -124,10 +136,33 @@ const rejectMatch = asyncHandler(async (req, res, next) => {
   if (match.status !== 'pending') throw new AppError('This match is already responded to.', 400);
 
   match.status = 'rejected';
+  match.active = false;
   match.respondedAt = new Date();
   await match.save();
 
   res.json({ success: true, match: await matchLabel(match, req.user._id) });
+});
+
+// @route  POST /api/match/cancel { matchId }
+// @access private
+const cancelMatch = asyncHandler(async (req, res, next) => {
+  const match = await cancelRelationship(req.body.matchId, req.user._id);
+  const otherId = String(match.mentorId) === String(req.user._id) ? match.learnerId : match.mentorId;
+  await notify({
+    userId: otherId,
+    type: 'mentorship',
+    title: 'Mentorship ended',
+    message: `${req.user.name} ended this mentorship relationship.`,
+    data: { matchId: match._id },
+  });
+  res.json({ success: true, match: await matchLabel(match, req.user._id) });
+});
+
+// @route  GET /api/match/relationships  → { mentors, learners }
+// @access private
+const getRelationships = asyncHandler(async (req, res) => {
+  const { mentors, learners } = await listMentorships(req.user._id);
+  res.json({ success: true, mentors, learners });
 });
 
 // @route  GET /api/match/history?status=&page=
@@ -163,4 +198,12 @@ const getPendingRequests = asyncHandler(async (req, res) => {
   res.json({ success: true, data: labeled });
 });
 
-module.exports = { requestMatch, acceptMatch, rejectMatch, getMatchHistory, getPendingRequests };
+module.exports = {
+  requestMatch,
+  acceptMatch,
+  rejectMatch,
+  cancelMatch,
+  getRelationships,
+  getMatchHistory,
+  getPendingRequests,
+};
