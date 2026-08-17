@@ -126,9 +126,9 @@ npm run build               # production bundle in dist/
 
 ## Operational notes
 
-- **Graceful degradation**: if the AI service is down, recommendations and
-  roadmaps automatically fall back to the Node heuristics (`aiService: false` in
-  the response) — the platform keeps working.
+- **Graceful degradation**: if the AI service is down, recommendations, roadmaps,
+  and session completion next-steps automatically fall back to Node heuristics
+  (`aiService: false` in the response) — the platform keeps working.
 - **Uploads**: `backend/uploads/` must be persistent across restarts (bind mount
   or object storage) or avatars/resumes will be lost.
 - **WebSocket**: Socket.IO shares the backend HTTP port; behind a load balancer,

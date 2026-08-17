@@ -16,6 +16,7 @@ skill relationships, and resume parsing.
 | POST | `/skills/related` | `{ skill }` | Related skills for one skill |
 | POST | `/skills/similarity` | `{ skill_a, skill_b }` | Similarity 0–1 between two skills |
 | POST | `/text/similarity` | `{ a, b }` | Similarity between two texts |
+| POST | `/next-steps` | `{ topic, goal? }` | Suggested next learning topics after a session |
 
 All AI routes are protected server-side by the backend (the backend forwards the
 user's JWT-authenticated request); the service itself trusts its network boundary
@@ -58,6 +59,14 @@ Named templates for common goals (`Data Scientist`, `Web Developer`, `ML Enginee
 `Android Developer`, `UI/UX Designer`) plus a default generic chain. Each step has a
 `title`, `description`, `skills`, `weeks` and `hours`; the total estimated hours is
 computed across steps.
+
+## Next-steps suggestions (`next-steps` endpoint)
+
+Called by `sessionController.completeSession()` after a session is marked complete.
+Takes a `topic` (the completed session's topic) and optional `goal` and returns
+`{ nextSteps: [{ topic, description }] }` — 3 AI-suggested follow-up topics. Falls
+back to a hardcoded heuristics array when the AI service is down. The response is
+forwarded to the frontend's `CompleteModal` so learners see a suggested learning path.
 
 ## Resume parsing (`resume_parser.py`)
 
