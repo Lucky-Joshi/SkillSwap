@@ -1,3 +1,4 @@
+import React from 'react';
 import { motion } from 'framer-motion';
 import { FiMail } from 'react-icons/fi';
 import Avatar from '../ui/Avatar';
@@ -7,7 +8,7 @@ import Tag from '../ui/Tag';
 import Button from '../ui/Button';
 import { useAuth } from '../../context/AuthContext';
 
-export default function MatchCard({ person, mode = 'mentors', onRequest, requesting }) {
+function MatchCard({ person, mode = 'mentors', onRequest, requesting }) {
   const { user } = useAuth();
   const isMe = user?.id === person.id;
   const teach = person.canTeach || [];
@@ -77,3 +78,5 @@ export default function MatchCard({ person, mode = 'mentors', onRequest, request
     </motion.div>
   );
 }
+
+export default React.memo(MatchCard);
