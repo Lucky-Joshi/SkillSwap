@@ -18,8 +18,10 @@ import toast from 'react-hot-toast';
 
 const ICONS = {
   match: '🤝',
+  mentorship: '🤝',
   message: '💬',
   session: '📅',
+  reminder: '⏰',
   review: '⭐',
   badge: '🏅',
   system: '🔔',
@@ -143,6 +145,22 @@ export default function Notifications() {
                   className="hidden shrink-0 items-center gap-1 text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300 sm:flex"
                 >
                   <FiMessageSquare /> Open chat
+                </Link>
+              )}
+              {(n.type === 'session' || n.type === 'reminder') && (
+                <Link
+                  to="/sessions"
+                  className="hidden shrink-0 items-center gap-1 text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300 sm:flex"
+                >
+                  <FiCalendar /> Open session
+                </Link>
+              )}
+              {n.type === 'mentorship' && (
+                <Link
+                  to="/mentorships"
+                  className="hidden shrink-0 items-center gap-1 text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300 sm:flex"
+                >
+                  🤝 View
                 </Link>
               )}
               {!n.read && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-brand-500" />}

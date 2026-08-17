@@ -58,6 +58,28 @@ export const AVAILABILITY_OPTIONS = [
   { value: 'mornings', label: 'Mornings' },
 ];
 
+export const MEETING_TYPE_OPTIONS = [
+  { value: 'googleMeet', label: 'Google Meet' },
+  { value: 'zoom', label: 'Zoom' },
+  { value: 'teams', label: 'Microsoft Teams' },
+  { value: 'custom', label: 'Custom URL' },
+];
+
+export const LOCATION_TYPE_OPTIONS = [
+  { value: 'campus', label: 'Campus' },
+  { value: 'classroom', label: 'Classroom' },
+  { value: 'library', label: 'Library' },
+  { value: 'lab', label: 'Lab' },
+  { value: 'custom', label: 'Custom Location' },
+];
+
+export const DURATION_OPTIONS = [
+  { value: '30', label: '30 minutes' },
+  { value: '60', label: '60 minutes' },
+  { value: '90', label: '90 minutes' },
+  { value: '120', label: '2 hours' },
+];
+
 export const SCORE_LABELS = [
   { min: 85, label: 'Excellent Match', color: 'text-emerald-600 dark:text-emerald-400' },
   { min: 70, label: 'Strong Match', color: 'text-brand-600 dark:text-brand-400' },

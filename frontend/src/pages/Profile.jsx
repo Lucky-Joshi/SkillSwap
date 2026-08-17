@@ -255,12 +255,15 @@ export default function Profile() {
               ) : (
                 <Button variant="secondary" onClick={() => setEditing(true)}><FiEdit3 className="h-4 w-4" /> Edit profile</Button>
               )
-            ) : (
+            ) : p.relationship?.active ? (
               <>
-                <Button onClick={handleRequest}><FiMail className="h-4 w-4" /> Request</Button>
                 <Button variant="secondary" onClick={() => navigate(`/chat?user=${profileId}`)}><FiMessageSquare className="h-4 w-4" /> Message</Button>
                 <Button variant="secondary" onClick={() => setSessionOpen(true)}><FiCalendar className="h-4 w-4" /> Schedule</Button>
               </>
+            ) : p.relationship ? (
+              <Tag tone="amber" className="self-center">⏳ Request pending</Tag>
+            ) : (
+              <Button onClick={handleRequest}><FiMail className="h-4 w-4" /> Request</Button>
             )}
           </div>
         </div>
