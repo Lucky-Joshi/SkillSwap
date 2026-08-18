@@ -47,7 +47,6 @@ _start_time = time.time()
 
 @app.get("/health")
 def health():
-    import psutil if_available
     mem = {}
     try:
         import psutil
