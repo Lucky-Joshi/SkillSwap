@@ -45,7 +45,7 @@ Session 1───n Certificate (sessionId)
 | learnedSkills | [String] | skills learned via sessions |
 | role | enum `student|faculty|alumni|admin` | default `student` |
 | isVerified | Boolean | |
-| isTest / isDemo | Boolean | test/demo account flags |
+| isTest / isDemo | Boolean | legacy flags (no longer used) |
 | lastActiveAt / lastSessionDate | Date | |
 | verificationToken / resetToken / resetTokenExpiry | String / Date | `select:false` |
 | notificationPreferences | {email, push, sessionReminders} | subdocument |
@@ -225,8 +225,6 @@ Computed by `trustService.js` and stored on the User document.
 - All models use `timestamps: true` (`createdAt`, `updatedAt`).
 - Passwords and verification/reset tokens are never returned by the API
   (`select:false` + removed by `userService.publicUser`).
-- The seed script (`backend/scripts/seed.js`) **clears all collections** and re-seeds
-  60+ skills, 8 badges, 10 institutions, admin + demo accounts, 10 demo students,
-  5 accepted connections, messages, sessions, reviews and notifications.
+- The core seeder (`backend/scripts/seed.js`) upserts skills, badges, and institutions.
 - Session `mentorId`/`learnerId` are always set (even for peer connections) to
   maintain query compatibility. The Connection `type` field determines semantics.

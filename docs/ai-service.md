@@ -65,7 +65,7 @@ computed across steps.
 Called by `sessionController.completeSession()` after a session is marked complete.
 Takes a `topic` (the completed session's topic) and optional `goal` and returns
 `{ nextSteps: [{ topic, description }] }` — 3 AI-suggested follow-up topics. Falls
-back to a hardcoded heuristics array when the AI service is down. The response is
+back to the built-in heuristic fallback when the AI service is down. The response is
 forwarded to the frontend's `CompleteModal` so learners see a suggested learning path.
 
 ## Resume parsing (`resume_parser.py`)

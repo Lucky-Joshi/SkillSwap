@@ -23,8 +23,8 @@
 - New accounts get a 6-digit verification code; `/auth/verify-email` validates it.
 - `forgot-password` issues a short-lived `resetToken` + `resetTokenExpiry`;
   `reset-password/:token` validates the token and expiry.
-- Demo mode (`DEMO_MODE=true`) auto-verifies on register and the mailer is a
-  **console logger** — never wire a real SMTP key into a demo `.env`.
+- Email verification uses a 6-digit code; production deployments should use a
+  transactional email provider (SendGrid, AWS SES, etc.).
 
 ## Input validation
 
@@ -102,6 +102,6 @@ This is used by:
 1. Generate a strong random `JWT_SECRET` (and rotate refresh secrets).
 2. Use MongoDB Atlas (TLS + IP allowlist) — never the default local URI.
 3. Set `NODE_ENV=production` (hides stack traces, enables prod middleware).
-4. Enable a real transactional email provider and disable `DEMO_MODE`.
+4. Enable a real transactional email provider.
 5. Terminate TLS at the reverse proxy (HTTPS for everything).
 6. Add user role checks for admin-only routes before exposing.

@@ -105,7 +105,7 @@ skillswap/
 cd backend
 npm install
 cp .env.example .env          # edit values
-npm run seed                  # seed skills, badges, demo users
+npm run seed                  # seed core data (skills, badges, institutions)
 npm run dev                   # http://localhost:5000
 ```
 
@@ -138,8 +138,7 @@ npm run dev                   # http://localhost:5173
 docker compose up --build
 ```
 
-Open http://localhost:5173. A demo account is seeded automatically
-(`demo@skillswap.io` / `demo1234`).
+Open http://localhost:5173 and register a new account.
 
 ---
 
@@ -195,6 +194,6 @@ Landing → Sign Up → Verify College Email → Complete Profile → Select Ski
 ## Future Scope
 
 Multi-college networking · Alumni mentorship · Internship referrals · AI interview
-coach & mock interviews · AI skill-gap analysis · Hackathon team builder · Faculty
+coach · AI skill-gap analysis · Hackathon team builder · Faculty
 recommendations · Placement readiness dashboard · Mobile app · Video calling ·
 Calendar integration · QR attendance for sessions.

@@ -23,8 +23,7 @@ docker compose up --build
   `AI_SERVICE_URL=http://ai-service:8000`, `CLIENT_URL=http://localhost:5173`.
 - `ai-service` — built from `ai-service/Dockerfile` (`python:3.11-slim`), port `8000`.
 
-Open `http://localhost:5173` and log in with the seeded demo account
-(`demo@skillswap.io` / `demo1234`).
+Open `http://localhost:5173` and register a new account.
 
 To seed inside the container:
 
@@ -41,7 +40,7 @@ docker compose exec backend npm run seed
 ```bash
 npm install
 cp .env.example .env        # adjust values
-npm run seed                # seed data (clears + repopulates)
+npm run seed                # seed core data (skills, badges, institutions)
 npm run dev                 # http://localhost:5000 (nodemon)
 ```
 
@@ -90,7 +89,7 @@ npm run build               # production bundle in dist/
   - `JWT_SECRET` → strong random value
   - `AI_SERVICE_URL` → internal URL of the deployed AI service
   - `CLIENT_URL` → frontend URL (CORS + Socket.IO origin)
-  - `UPLOAD_DIR`, `EMAIL_VERIFY_BASE_URL`, `DEMO_MODE=false`
+  - `UPLOAD_DIR`, `EMAIL_VERIFY_BASE_URL`
 - **AI service**: just set the port (8000). Keep it reachable only by the backend
   (private network / firewall) — it has no auth of its own.
 - Enable health checks on `/api/health` (backend) and `/health` (AI service).
@@ -99,8 +98,7 @@ npm run build               # production bundle in dist/
 
 - Create a cluster, allow-list deployment IPs, enable TLS (default).
 - Put the SRV connection string in `MONGO_URI`.
-- Run the seed once against the production database:
-  `npm run seed` with the production env, or a one-off `docker compose` run.
+- Run core data seeder to populate skills, badges, and institutions: `npm run seed` with the production env.
 
 ---
 
@@ -117,7 +115,6 @@ npm run build               # production bundle in dist/
 | `AI_SERVICE_TIMEOUT` | backend | `4000` | ms |
 | `CLIENT_URL` | backend | `http://localhost:5173` | CORS + Socket.IO |
 | `UPLOAD_DIR` | backend | `uploads` | |
-| `DEMO_MODE` | backend | unset | `true` auto-verifies emails |
 | `EMAIL_VERIFY_BASE_URL` | backend | `http://localhost:5173/verify-email` | |
 | `VITE_API_URL` | frontend | `''` (same origin) | absolute API base in prod |
 | `VITE_SOCKET_URL` | frontend | `window.location.origin` | Socket.IO origin |

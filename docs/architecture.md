@@ -161,7 +161,7 @@ Chat and sessions are only unlocked when `status === 'accepted'` AND `active ===
 
 ```
 Landing → Register (3 steps: account → profile → skills)
-→ Email verified (demo mode auto-verifies)
+→ Email verified
 → Dashboard (profile completion, stats, upcoming sessions)
 → AI Recommendations (semantic scoring) / Discover (filter + search)
 → Send learning/mentorship/peer request → recipient accepts/rejects (notifications + badge)

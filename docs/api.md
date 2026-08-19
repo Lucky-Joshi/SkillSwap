@@ -27,7 +27,7 @@ Authorization: Bearer <JWT>
 | POST | `/auth/reset-password/:token` | `password` | Set new password |
 | PUT | `/auth/update-password` | `currentPassword, newPassword` | Change password |
 
-> Demo mode (`DEMO_MODE=true`) auto-verifies on register; the mailer logs to console.
+
 
 ## Users (`/api/users`)
 
@@ -271,9 +271,7 @@ handled the request or the heuristic fallback did.
 | PUT | `/admin/users/:id/role` | Change user role |
 | DELETE | `/admin/users/:id` | Delete user |
 | DELETE | `/admin/users/test` | Delete all test accounts |
-| POST | `/admin/demo/reset` | Reset demo account |
 | DELETE | `/admin/data` | Purge all user data |
-| POST | `/admin/seed/reseed` | Re-seed demo data |
 
 ## Institutions (`/api/institutions`)
 
