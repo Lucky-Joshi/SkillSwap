@@ -12,7 +12,6 @@ const config = {
   aiServiceTimeout: parseInt(process.env.AI_SERVICE_TIMEOUT, 10) || 4000,
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   uploadDir: process.env.UPLOAD_DIR || 'uploads',
-  demoMode: process.env.DEMO_MODE === 'true',
   emailVerifyBaseUrl: process.env.EMAIL_VERIFY_BASE_URL || 'http://localhost:5173/verify-email',
   corsOrigins: process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map((u) => u.trim())
