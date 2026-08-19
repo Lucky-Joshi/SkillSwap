@@ -24,7 +24,7 @@ const sendVerificationEmail = async (user) => {
 // @route  POST /api/auth/register
 // @access public — open registration for all students.
 const register = asyncHandler(async (req, res, next) => {
-  const { name, email, password, college, qualification, department, year, bio, availability, isTest } = req.body;
+  const { name, email, password, college, qualification, department, year, bio, availability } = req.body;
 
   if (!college || !qualification || !department || !year) {
     throw new AppError('Please complete your profile: school/college, qualification, year and department are required.', 400);
@@ -34,8 +34,6 @@ const register = asyncHandler(async (req, res, next) => {
   if (existing) {
     throw new AppError('An account with this email already exists. Please log in.', 409);
   }
-
-  const testAccount = config.demoMode && isTest === true;
 
   const user = await User.create({
     name,
@@ -47,8 +45,7 @@ const register = asyncHandler(async (req, res, next) => {
     year,
     bio: bio || '',
     availability: availability || 'anytime',
-    isVerified: config.demoMode,
-    isTest: testAccount,
+    isVerified: false,
     trustScore: 15,
   });
 
@@ -56,20 +53,14 @@ const register = asyncHandler(async (req, res, next) => {
   await evaluateBadges(user._id);
   queueTrustRefresh(user._id);
 
-  if (!config.demoMode) {
-    await sendVerificationEmail(user);
-  }
+  await sendVerificationEmail(user);
 
   const profile = await publicUser(user);
   res.status(201).json({
     success: true,
     token,
     user: profile,
-    message: testAccount
-      ? 'Temporary test account created. It can be deleted anytime without affecting other data.'
-      : config.demoMode
-        ? 'Account created successfully.'
-        : 'Account created. Please verify your email.',
+    message: 'Account created. Please verify your email.',
   });
 });
 
