@@ -10,8 +10,9 @@ User 1───n UserBadge n───1 Badge
 User 1───n Connection (userA or userB)
 User 1───n Session (mentorId or learnerId)
 User 1───n Message (sender or receiver)
-User 1───n Review
+User 1───n Review (as mentor)
 User 1───n Notification
+User 1───n Report (as reporterId)
 Connection 1───n Session (matchId)
 Session 1───n Review (sessionId)
 Session 1───n Certificate (sessionId)
@@ -24,31 +25,49 @@ Session 1───n Certificate (sessionId)
 | Field | Type | Notes |
 |-------|------|-------|
 | name | String (≤80) | required |
-| email | String (unique, lowercase) | required, regex-validated |
+| email | String (unique, lowercase) | required, regex-validated, indexed |
 | password | String | bcrypt-hashed (12 rounds), `select:false` |
-| qualification | String | e.g. "B.Tech", "MSc" |
-| college / department | String | |
-| year | enum `1|2|3|4|5|Graduate|''` | |
+| role | enum `student\|faculty\|alumni\|admin` | default `student`, indexed |
+| qualification | String enum | e.g. "B.Tech", "MSc", "BCA" |
+| college / department | String | indexed |
+| year | enum `1\|2\|3\|4\|5\|Graduate\|''` | |
+| graduationYear | String | |
 | bio | String (≤500) | |
+| introduction | String (≤200) | short intro shown on profile |
+| teachingPhilosophy | String (≤500) | |
+| learningGoals | String (≤500) | |
+| preferredLearningStyle | enum `visual\|auditory\|reading\|kinesthetic\|mixed\|''` | |
+| languages | [String] | |
+| interests | [String] | |
+| timezone | String | |
+| location | String | |
 | avatar | String | path/URL to uploaded file |
+| coverPhoto | String | path/URL to uploaded file |
 | github / linkedin / portfolio | String | URL-validated |
-| projects | [{title, description, link}] | subdocument |
+| socialLinks | Object | `{ leetcode, codeforces, hackerrank, kaggle, behance, dribbble, youtube, website }` |
+| projects | [{title, description, link, image, skills}] | subdocument array with images |
+| educationHistory | [{school, university, degree, field, startYear, endYear, isCurrent}] | subdocument array |
 | achievements / certificates | [String] | |
-| availability | enum `weekdays|weekends|evenings|mornings|anytime|''` | |
+| availability | enum `weekdays\|weekends\|evenings\|mornings\|anytime\|''` | |
+| availabilitySchedule | Object | `{ monday–sunday: Boolean, morning/afternoon/evening: Boolean }` |
 | rating | Number 0–5 | aggregated from reviews |
 | reviewCount | Number | |
 | trustScore | Number 0–100 | computed by trustService |
-| points | Number | badge + activity points |
-| sessionsCompleted | Number | |
-| hoursLearned / hoursTaught | Number | |
-| learningStreak / teachingStreak | Number | consecutive days |
-| learnedSkills | [String] | skills learned via sessions |
-| role | enum `student|faculty|alumni|admin` | default `student` |
+| points | Number | badge + activity points, indexed |
 | isVerified | Boolean | |
+| isSuspended | Boolean | admin can suspend users |
 | isTest / isDemo | Boolean | legacy flags (no longer used) |
 | lastActiveAt / lastSessionDate | Date | |
+| profileViews | Number | |
+| sessionsCompleted | Number | |
+| hoursLearned / hoursTaught | Number | |
+| learnedSkills | [String] | skills learned via sessions |
+| learningStreak / teachingStreak | Number | consecutive days |
 | verificationToken / resetToken / resetTokenExpiry | String / Date | `select:false` |
 | notificationPreferences | {email, push, sessionReminders} | subdocument |
+| privacy | Object | `{ profileVisibility, showEmail, showCollege, showContact, showAvailability, showPortfolioLinks }` |
+
+Indexes: `email` (unique), `name` (text), `bio` (text), `college`, `role`, `points`, `rating`, `createdAt`, `isTest`.
 
 Hooks: `pre('save')` hashes password when modified. `comparePassword(candidate)` helper.
 
@@ -60,8 +79,8 @@ Hooks: `pre('save')` hashes password when modified. `comparePassword(candidate)`
 |-------|------|-------|
 | name | String (unique, ≤60) | required |
 | aliases | [String] | fuzzy lookup (e.g. `ReactJS`) |
-| category | enum `programming|frontend|backend|database|data-science|ai-ml|cloud-devops|design|soft-skills|languages|business|other` | |
-| difficulty | enum `beginner|intermediate|advanced` | |
+| category | enum `programming\|frontend\|backend\|database\|data-science\|ai-ml\|cloud-devops\|design\|soft-skills\|languages\|business\|other` | |
+| difficulty | enum `beginner\|intermediate\|advanced` | |
 | icon | String | emoji |
 | description | String | |
 
@@ -167,7 +186,7 @@ Unique (sparse) index `{mentor, learner, sessionId}` — one review per session 
 | Field | Type | Notes |
 |-------|------|-------|
 | userId | ObjectId → User | required, indexed |
-| type | enum `match\|mentorship\|message\|session\|reminder\|review\|badge\|system` | |
+| type | enum `match\|mentorship\|message_received\|session\|reminder\|review\|badge\|system` | |
 | title | String | required |
 | message | String | |
 | read | Boolean | default false |
@@ -186,6 +205,8 @@ Unique (sparse) index `{mentor, learner, sessionId}` — one review per session 
 |-------|------|-------|
 | name | String (unique) | required |
 | domain | String | email domain |
+| city | String | |
+| country | String | |
 | logo | String | URL |
 | verified | Boolean | |
 
@@ -197,6 +218,22 @@ Unique (sparse) index `{mentor, learner, sessionId}` — one review per session 
 | sessionId | ObjectId → Session | required |
 | certificateId | String | unique, format `SS-XXXXXX` |
 | issuedAt | Date | |
+
+## Reports
+
+| Field | Type | Notes |
+|-------|------|-------|
+| reporterId | ObjectId → User | required, indexed |
+| targetType | enum `user\|message\|session\|skill` | required |
+| targetId | ObjectId | required |
+| reason | enum `fake_profile\|inappropriate_content\|spam\|harassment\|other` | required |
+| description | String (≤1000) | |
+| status | enum `pending\|reviewed\|resolved\|dismissed` | default `pending`, indexed |
+| reviewedBy | ObjectId → User | admin who resolved |
+| reviewedAt | Date | |
+| resolution | String (≤500) | |
+
+Indexes: `{status, createdAt}`, `{targetType, targetId}`.
 
 ---
 
@@ -225,6 +262,7 @@ Computed by `trustService.js` and stored on the User document.
 - All models use `timestamps: true` (`createdAt`, `updatedAt`).
 - Passwords and verification/reset tokens are never returned by the API
   (`select:false` + removed by `userService.publicUser`).
-- The core seeder (`backend/scripts/seed.js`) upserts skills, badges, and institutions.
+- The core seeder (`backend/scripts/seed.js`) upserts skills, badges, and institutions — no demo/test users.
+- Admin accounts are created via `backend/scripts/create-admin.js` (promotes existing users or creates new ones).
 - Session `mentorId`/`learnerId` are always set (even for peer connections) to
   maintain query compatibility. The Connection `type` field determines semantics.
