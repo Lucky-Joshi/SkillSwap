@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Link, NavLink, Navigate } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiMenu, FiX, FiMoon, FiSun } from 'react-icons/fi';
 import { useTheme } from '../../context/ThemeContext';
-import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../utils/routes';
 
 const NAV_LINKS = [
@@ -20,10 +19,7 @@ const linkClass = ({ isActive }) =>
 
 export default function PublicNavbar() {
   const { theme, toggle } = useTheme();
-  const { token, user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  const dashboardPath = user?.role === 'admin' ? '/admin' : ROUTES.DASHBOARD;
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/80">
@@ -53,20 +49,12 @@ export default function PublicNavbar() {
           >
             {theme === 'dark' ? <FiSun className="h-5 w-5" /> : <FiMoon className="h-5 w-5" />}
           </button>
-          {token ? (
-            <Link to={dashboardPath} className="btn-primary">
-              Dashboard
-            </Link>
-          ) : (
-            <>
-              <Link to={ROUTES.LOGIN} className="btn-ghost hidden sm:inline-flex">
-                Log in
-              </Link>
-              <Link to={ROUTES.REGISTER} className="btn-primary">
-                Get started
-              </Link>
-            </>
-          )}
+          <Link to={ROUTES.LOGIN} className="btn-ghost hidden sm:inline-flex">
+            Log in
+          </Link>
+          <Link to={ROUTES.REGISTER} className="btn-primary">
+            Get started
+          </Link>
           <button
             onClick={() => setMobileOpen(true)}
             className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 lg:hidden"
@@ -128,32 +116,20 @@ export default function PublicNavbar() {
                 ))}
               </nav>
               <div className="mt-auto space-y-3">
-                {token ? (
-                  <Link
-                    to={dashboardPath}
-                    onClick={() => setMobileOpen(false)}
-                    className="btn-primary w-full"
-                  >
-                    Dashboard
-                  </Link>
-                ) : (
-                  <>
-                    <Link
-                      to={ROUTES.LOGIN}
-                      onClick={() => setMobileOpen(false)}
-                      className="btn-secondary w-full"
-                    >
-                      Log in
-                    </Link>
-                    <Link
-                      to={ROUTES.REGISTER}
-                      onClick={() => setMobileOpen(false)}
-                      className="btn-primary w-full"
-                    >
-                      Get started
-                    </Link>
-                  </>
-                )}
+                <Link
+                  to={ROUTES.LOGIN}
+                  onClick={() => setMobileOpen(false)}
+                  className="btn-secondary w-full"
+                >
+                  Log in
+                </Link>
+                <Link
+                  to={ROUTES.REGISTER}
+                  onClick={() => setMobileOpen(false)}
+                  className="btn-primary w-full"
+                >
+                  Get started
+                </Link>
               </div>
             </motion.aside>
           </>
