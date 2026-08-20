@@ -22,9 +22,7 @@ export default function Settings() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const isTest = user?.isTest === true;
-  const isDemo = user?.isDemo === true;
-  const canSelfDelete = !isDemo && user?.role !== 'admin';
+  const canSelfDelete = user?.role !== 'admin';
 
   const handleDeleteAccount = async () => {
     if (!confirmDelete) {
@@ -36,7 +34,7 @@ export default function Settings() {
     setDeleting(true);
     try {
       await deleteMyAccount();
-      toast.success(isTest ? 'Temporary test account deleted. No other data was affected.' : 'Account deleted.');
+      toast.success('Account deleted.');
       logout();
       navigate('/');
     } catch (err) {
@@ -121,9 +119,7 @@ export default function Settings() {
               <div className="text-sm">
                 <div className={`font-semibold ${trustLabel(user?.trustScore || 0).color}`}>{trustLabel(user?.trustScore || 0).label}</div>
                 <p className="mt-0.5 text-xs text-slate-400">
-                  {isTest
-                    ? 'This is a temporary test account. Real activity raises trust; test data never does.'
-                    : 'Complete your profile, verify your email and stay active to raise it.'}
+                  Complete your profile, verify your email and stay active to raise it.
                 </p>
               </div>
             </div>
@@ -140,19 +136,15 @@ export default function Settings() {
           <Card className="border-red-500/30">
             <h2 className="mb-2 font-display font-bold text-red-500">Danger zone</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              {isTest
-                ? 'Deleting this temporary test account removes its profile, matches and chat history. It never affects real accounts.'
-                : isDemo
-                  ? 'The demo account is shared. Use the demo reset tool to restore it instead.'
-                  : 'Deleting your account removes your profile, matches and chat history.'}
+              Deleting your account removes your profile, matches and chat history.
             </p>
             {canSelfDelete ? (
               <Button variant="danger" className="mt-4" onClick={handleDeleteAccount} loading={deleting}>
-                {confirmDelete ? 'Click again to confirm' : isTest ? 'Delete test account' : 'Delete account'}
+                {confirmDelete ? 'Click again to confirm' : 'Delete account'}
               </Button>
             ) : (
               <Button variant="danger" className="mt-4 opacity-60" disabled>
-                {isDemo ? 'Demo account protected' : 'Admin accounts protected'}
+                Admin accounts protected
               </Button>
             )}
           </Card>

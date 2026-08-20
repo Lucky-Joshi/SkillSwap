@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import PublicLayout from './layouts/PublicLayout';
 import MainLayout from './layouts/MainLayout';
+import AdminLayout from './layouts/AdminLayout';
 import AuthLayout from './layouts/AuthLayout';
 import ProtectedRoute from './routes/ProtectedRoute';
 import PublicOnlyRoute from './routes/PublicOnlyRoute';
@@ -54,7 +55,20 @@ const Roadmap = Loadable(lazy(() => import('./pages/app/Roadmap')));
 const Profile = Loadable(lazy(() => import('./pages/app/Profile')));
 const Settings = Loadable(lazy(() => import('./pages/app/Settings')));
 const Certificates = Loadable(lazy(() => import('./pages/app/Certificates')));
-const Admin = Loadable(lazy(() => import('./pages/app/Admin')));
+
+const AdminDashboard = Loadable(lazy(() => import('./pages/app/AdminDashboard')));
+const AdminUsers = Loadable(lazy(() => import('./pages/app/AdminUsers')));
+const AdminInstitutions = Loadable(lazy(() => import('./pages/app/AdminInstitutions')));
+const AdminSkills = Loadable(lazy(() => import('./pages/app/AdminSkills')));
+const AdminSessions = Loadable(lazy(() => import('./pages/app/AdminSessions')));
+const AdminBadges = Loadable(lazy(() => import('./pages/app/AdminBadges')));
+const AdminCertificates = Loadable(lazy(() => import('./pages/app/AdminCertificates')));
+const AdminReports = Loadable(lazy(() => import('./pages/app/AdminReports')));
+const AdminAIMonitor = Loadable(lazy(() => import('./pages/app/AdminAIMonitor')));
+const AdminSystemHealth = Loadable(lazy(() => import('./pages/app/AdminSystemHealth')));
+const AdminAnalytics = Loadable(lazy(() => import('./pages/app/AdminAnalytics')));
+const AdminSettings = Loadable(lazy(() => import('./pages/app/AdminSettings')));
+
 const NotFound = Loadable(lazy(() => import('./pages/NotFound')));
 
 function AppLayout() {
@@ -63,6 +77,16 @@ function AppLayout() {
       <MainLayout>
         <Outlet />
       </MainLayout>
+    </ProtectedRoute>
+  );
+}
+
+function AdminGuard() {
+  return (
+    <ProtectedRoute>
+      <AdminLayout>
+        <Outlet />
+      </AdminLayout>
     </ProtectedRoute>
   );
 }
@@ -121,7 +145,22 @@ export default function App() {
               <Route path="profile/:id" element={<Profile />} />
               <Route path="settings" element={<Settings />} />
               <Route path="certificates" element={<Certificates />} />
-              <Route path="admin" element={<Admin />} />
+              <Route path="admin" element={<Navigate to="/admin" replace />} />
+            </Route>
+
+            <Route path="/admin" element={<AdminGuard />}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="institutions" element={<AdminInstitutions />} />
+              <Route path="skills" element={<AdminSkills />} />
+              <Route path="sessions" element={<AdminSessions />} />
+              <Route path="badges" element={<AdminBadges />} />
+              <Route path="certificates" element={<AdminCertificates />} />
+              <Route path="reports" element={<AdminReports />} />
+              <Route path="ai" element={<AdminAIMonitor />} />
+              <Route path="health" element={<AdminSystemHealth />} />
+              <Route path="analytics" element={<AdminAnalytics />} />
+              <Route path="settings" element={<AdminSettings />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import { FiMenu, FiX } from 'react-icons/fi';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { FiMenu, FiX, FiLogOut } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar from './Sidebar';
 import { ROUTES } from '../../utils/routes';
+import { useAuth } from '../../context/AuthContext';
 
 function Brand() {
   return (
@@ -20,6 +21,13 @@ function Brand() {
 
 export default function TopNavbar() {
   const [open, setOpen] = useState(false);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate(ROUTES.HOME);
+  };
 
   return (
     <>
@@ -53,7 +61,7 @@ export default function TopNavbar() {
                   <FiX className="h-5 w-5" />
                 </button>
               </div>
-              <nav className="mt-6 flex flex-col gap-1">
+              <nav className="mt-6 flex flex-1 flex-col gap-1 overflow-y-auto">
                 {[
                   { to: ROUTES.DASHBOARD, label: 'Dashboard' },
                   { to: ROUTES.DISCOVER, label: 'Discover' },
@@ -82,13 +90,20 @@ export default function TopNavbar() {
                   </NavLink>
                 ))}
               </nav>
-              <div className="mt-6 border-t border-slate-200/60 pt-4 dark:border-white/10">
+              <div className="shrink-0 space-y-1 border-t border-slate-200/60 pt-4 dark:border-white/10">
                 <NavLink to={ROUTES.PROFILE} onClick={() => setOpen(false)} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition ${isActive ? 'bg-gradient-to-r from-brand-600/15 to-brand-500/5 text-brand-700 dark:text-brand-300' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800/70'}`}>
                   Profile
                 </NavLink>
                 <NavLink to={ROUTES.SETTINGS} onClick={() => setOpen(false)} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition ${isActive ? 'bg-gradient-to-r from-brand-600/15 to-brand-500/5 text-brand-700 dark:text-brand-300' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800/70'}`}>
                   Settings
                 </NavLink>
+                <button
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-500 transition hover:bg-red-500/10 hover:text-red-500 dark:text-slate-400"
+                >
+                  <FiLogOut className="h-5 w-5" />
+                  Log out
+                </button>
               </div>
             </motion.aside>
           </>

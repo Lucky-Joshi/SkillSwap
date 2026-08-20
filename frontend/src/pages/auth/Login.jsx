@@ -19,7 +19,12 @@ export default function Login() {
     setLoading(true);
     try {
       await login(values.email, values.password);
-      navigate('/app/dashboard');
+      const stored = JSON.parse(localStorage.getItem('skillswap_user'));
+      if (stored?.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/app/dashboard');
+      }
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -53,9 +58,6 @@ export default function Login() {
         </div>
         <Button type="submit" className="w-full" loading={loading}>Log in</Button>
       </form>
-      <div className="mt-4 rounded-xl border border-slate-200/60 bg-slate-50/60 px-4 py-3 text-xs text-slate-500 dark:border-white/10 dark:bg-slate-950/40 dark:text-slate-400">
-        <span className="font-semibold">Demo:</span> demo@skillswap.io · password <code className="font-mono">demo1234</code>
-      </div>
       <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
         New to SkillSwap?{' '}
         <Link to="/register" className="font-semibold text-brand-600 hover:underline dark:text-brand-300">

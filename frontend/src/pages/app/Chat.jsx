@@ -311,7 +311,6 @@ export default function Chat() {
                     {activeUser?.department && ` · ${activeUser.department}`}
                   </div>
                 </div>
-                {activeUser?.isTest && <Tag tone="amber">Test account</Tag>}
               </div>
 
               <div className="flex-1 space-y-3 overflow-y-auto p-4">

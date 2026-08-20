@@ -32,7 +32,18 @@ export const ROUTES = {
   PROFILE: '/app/profile',
   SETTINGS: '/app/settings',
   CERTIFICATES: '/app/certificates',
-  ADMIN: '/app/admin',
+  ADMIN_DASHBOARD: '/admin',
+  ADMIN_USERS: '/admin/users',
+  ADMIN_INSTITUTIONS: '/admin/institutions',
+  ADMIN_SKILLS: '/admin/skills',
+  ADMIN_SESSIONS: '/admin/sessions',
+  ADMIN_BADGES: '/admin/badges',
+  ADMIN_CERTIFICATES: '/admin/certificates',
+  ADMIN_REPORTS: '/admin/reports',
+  ADMIN_AI: '/admin/ai',
+  ADMIN_HEALTH: '/admin/health',
+  ADMIN_ANALYTICS: '/admin/analytics',
+  ADMIN_SETTINGS: '/admin/settings',
 };
 
 export const profileRoute = (id) => id ? `/app/profile/${id}` : '/app/profile';

@@ -20,8 +20,6 @@ import { YEAR_OPTIONS, AVAILABILITY_OPTIONS, QUALIFICATION_OPTIONS, DEPARTMENT_O
 
 const STEPS = ['Account', 'Profile', 'Skills'];
 
-const showTestAccounts = import.meta.env.DEV || import.meta.env.VITE_TEST_ACCOUNTS === 'true';
-
 export default function Register() {
   useDocumentTitle('Create account');
   const { register: registerUser } = useAuth();
@@ -71,16 +69,11 @@ export default function Register() {
         year: values.year,
         bio: values.bio,
         availability: values.availability,
-        isTest: values.isTest || undefined,
       });
       if (teach.length || learn.length) {
         await saveSkills(res.user.id);
       }
-      if (res.user?.isTest) {
-        toast.success('Temporary test account created. It can be deleted anytime.');
-      } else {
-        toast.success('Account created! Your AI matches are ready.');
-      }
+      toast.success('Account created! Your AI matches are ready.');
       navigate('/app/recommendations');
     } catch (err) {
       toast.error(err.message);
@@ -183,16 +176,6 @@ export default function Register() {
             </div>
 
             <TextArea label="Short bio (optional)" placeholder="What are you passionate about?" {...register('bio')} />
-
-            {showTestAccounts && (
-              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-dashed border-amber-400/40 bg-amber-50/50 p-3 dark:bg-amber-400/5">
-                <input type="checkbox" className="mt-1 h-4 w-4 accent-amber-500" {...register('isTest')} />
-                <span className="text-sm text-amber-800 dark:text-amber-300">
-                  <span className="font-semibold">This is a temporary test account</span>
-                  <span className="block text-xs opacity-80">Marked as test data — an admin (or you, in Settings) can delete it anytime without affecting other accounts.</span>
-                </span>
-              </label>
-            )}
           </motion.div>
         )}
 

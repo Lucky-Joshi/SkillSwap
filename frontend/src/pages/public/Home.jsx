@@ -150,7 +150,6 @@ export default function Home() {
         secondaryLabel="I have an account"
         secondaryTo={ROUTES.LOGIN}
       >
-        <p className="mt-4 text-xs text-slate-400">Demo account: demo@skillswap.io / demo1234</p>
         <FloatingCards />
       </HeroSection>
 

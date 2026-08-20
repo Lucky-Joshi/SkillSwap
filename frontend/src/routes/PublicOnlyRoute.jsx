@@ -4,7 +4,7 @@ import { ROUTES } from '../utils/routes';
 import Spinner from '../components/ui/Spinner';
 
 export default function PublicOnlyRoute({ children }) {
-  const { token, loading } = useAuth();
+  const { token, user, loading } = useAuth();
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -12,6 +12,9 @@ export default function PublicOnlyRoute({ children }) {
       </div>
     );
   }
-  if (token) return <Navigate to={ROUTES.DASHBOARD} replace />;
+  if (token) {
+    if (user?.role === 'admin') return <Navigate to="/admin" replace />;
+    return <Navigate to={ROUTES.DASHBOARD} replace />;
+  }
   return children;
 }
