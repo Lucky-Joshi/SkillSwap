@@ -14,6 +14,7 @@ const start = async () => {
 
   const server = http.createServer(app);
   const io = initSocket(server);
+  app.set('io', io);
 
   server.listen(config.port, () => {
     logger.info(`SkillSwap API running on http://localhost:${config.port}`);

@@ -33,7 +33,6 @@ router.post(
     ]).withMessage('Invalid qualification'),
     body('department').trim().notEmpty().withMessage('Department/stream is required').isLength({ max: 80 }),
     body('year').trim().notEmpty().withMessage('Current year/class is required').isIn(['1', '2', '3', '4', '5', 'Graduate']),
-    body('isTest').optional().isBoolean(),
   ],
   validate,
   register

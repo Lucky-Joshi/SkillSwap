@@ -24,12 +24,11 @@ const deleteUserData = async (userId) => {
 
 /**
  * Permanently delete a user and all their data.
- * Demo and admin accounts are protected from deletion.
+ * Admin accounts are protected from deletion.
  */
 const deleteUser = async (userId) => {
   const user = await User.findById(userId);
   if (!user) throw new AppError('User not found.', 404);
-  if (user.isDemo) throw new AppError('The demo account cannot be deleted. Use the demo reset tool instead.', 400);
   if (user.role === 'admin') throw new AppError('Admin accounts cannot be deleted.', 400);
 
   await deleteUserData(user._id);
@@ -37,16 +36,4 @@ const deleteUser = async (userId) => {
   return user;
 };
 
-/** Delete all temporary test accounts. Returns how many were removed. */
-const deleteTestUsers = async () => {
-  const testUsers = await User.find({ isTest: true, isDemo: { $ne: true } }).select('_id');
-  for (const u of testUsers) {
-    await deleteUserData(u._id);
-  }
-  if (testUsers.length) {
-    await User.deleteMany({ _id: { $in: testUsers.map((u) => u._id) } });
-  }
-  return testUsers.length;
-};
-
-module.exports = { deleteUserData, deleteUser, deleteTestUsers };
+module.exports = { deleteUserData, deleteUser };

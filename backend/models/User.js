@@ -114,6 +114,7 @@ const userSchema = new mongoose.Schema(
     lastActiveAt: { type: Date, default: Date.now },
     isTest: { type: Boolean, default: false },
     isDemo: { type: Boolean, default: false },
+    isSuspended: { type: Boolean, default: false },
     trustScore: { type: Number, min: 0, max: 100, default: 0 },
     sessionsCompleted: { type: Number, default: 0 },
     hoursLearned: { type: Number, default: 0 },

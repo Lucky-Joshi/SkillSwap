@@ -41,6 +41,7 @@ const getRecommendations = asyncHandler(async (req, res) => {
   const candidates = await User.find({
     _id: { $ne: req.user._id },
     isVerified: true,
+    role: { $ne: 'admin' },
   }).lean();
 
   const candidatesWithSkills = await withSkills(candidates);

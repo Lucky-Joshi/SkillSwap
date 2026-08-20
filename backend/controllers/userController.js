@@ -267,7 +267,7 @@ const getPortfolio = asyncHandler(async (req, res, next) => {
 const searchUsers = asyncHandler(async (req, res) => {
   const { search, skill, department, year, availability, college, qualification, mentor, verified } = req.query;
   const { page, limit, skip } = paginate(req);
-  const filter = { _id: { $ne: req.user._id } };
+  const filter = { _id: { $ne: req.user._id }, role: { $ne: 'admin' } };
 
   if (search) {
     filter.$or = [
@@ -307,10 +307,10 @@ const searchUsers = asyncHandler(async (req, res) => {
     filter._id = { $ne: req.user._id, $in: learnerIds };
   }
 
-  let sort = { isTest: 1, points: -1, rating: -1 };
-  if (req.query.sort === 'rating') sort = { isTest: 1, rating: -1 };
-  if (req.query.sort === 'name') sort = { isTest: 1, name: 1 };
-  if (req.query.sort === 'newest') sort = { isTest: 1, createdAt: -1 };
+  let sort = { points: -1, rating: -1 };
+  if (req.query.sort === 'rating') sort = { rating: -1 };
+  if (req.query.sort === 'name') sort = { name: 1 };
+  if (req.query.sort === 'newest') sort = { createdAt: -1 };
 
   const [users, total] = await Promise.all([
     User.find(filter).sort(sort).skip(skip).limit(limit),

@@ -506,15 +506,14 @@ const resolveReport = asyncHandler(async (req, res, next) => {
 const getAIMonitor = asyncHandler(async (req, res) => {
   const aiUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
   try {
-    const response = await fetch(`${aiUrl}/health`);
-    if (!response.ok) throw new Error('AI service responded with error');
-    const data = await response.json();
+    const { default: axios } = await import('axios');
+    const { data } = await axios.get(`${aiUrl}/health`, { timeout: 5000 });
     res.json({
       success: true,
       aiStatus: 'online',
-      uptime: data.uptime || 0,
+      uptime: data.uptime_seconds || 0,
       graphNodes: data.graph_nodes || 0,
-      graphEdges: data.graph_edges || 0,
+      graphEdges: 0,
       version: data.version || 'unknown',
     });
   } catch (err) {
@@ -525,6 +524,7 @@ const getAIMonitor = asyncHandler(async (req, res) => {
       graphNodes: 0,
       graphEdges: 0,
       version: null,
+      error: err.message,
     });
   }
 });
@@ -540,11 +540,10 @@ const getSystemHealth = asyncHandler(async (req, res) => {
   let aiData = {};
   try {
     const aiUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
-    const response = await fetch(`${aiUrl}/health`);
-    if (response.ok) {
-      aiData = await response.json();
-      aiStatus = 'online';
-    }
+    const { default: axios } = await import('axios');
+    const { data } = await axios.get(`${aiUrl}/health`, { timeout: 5000 });
+    aiData = data;
+    aiStatus = 'online';
   } catch (err) {
     aiStatus = 'offline';
   }
