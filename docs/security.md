@@ -7,7 +7,8 @@
   `userService.publicUser()` deletes it from every API response.
 - **JWT** bearer tokens (HS256) signed with `JWT_SECRET`, default expiry `7d`
   (`JWT_EXPIRES_IN`). The middleware (`middleware/auth.js`) verifies the token on
-  every protected route and attaches `req.user` (freshly loaded from the DB).
+  every protected route and attaches `req.user` (freshly loaded from the DB). The
+  JWT payload includes the user's `role` for client-side routing.
 - **Socket.IO** authenticates with the same JWT passed in the handshake
   (`socket.handshake.auth.token`); invalid/expired tokens are rejected before a
   connection is established.
@@ -43,21 +44,26 @@
 
 ## Rate limiting
 
-A rate limiter (`express-rate-limit`) is applied to the API, with stricter limits
-on auth endpoints (login/register/forgot-password) to slow credential-stuffing and
-spam.
+Rate limiters (`express-rate-limit`) are configurable via environment variables:
 
-- General API: 500 requests / 15 minutes
-- Auth endpoints: 30 requests / 15 minutes
+| Scope | Default | Env variable |
+|-------|---------|-------------|
+| General API | 500 req / 15 min | `RATE_LIMIT_GLOBAL` |
+| Auth endpoints | 30 req / 15 min | `RATE_LIMIT_AUTH` |
+| AI endpoints | 20 req / 15 min | `RATE_LIMIT_AI` |
+
+Stricter limits on auth endpoints slow credential-stuffing and spam.
 
 ## CORS
 
-CORS is restricted to the allowlist in `app.js` (frontend origin, default
-`http://localhost:5173`). Socket.IO uses the same origin policy.
+CORS is restricted to the allowlist configured via `CORS_ORIGINS` env (comma-separated)
+or falls back to `CLIENT_URL`. Socket.IO uses the same origin policy.
 
 ## Authorization
 
 - Protected routes require a valid JWT.
+- **Role-based access control**: `restrictTo(...roles)` middleware checks `req.user.role`
+  against allowed roles. Admin-only routes require `role: 'admin'`.
 - Ownership checks everywhere relevant, e.g.:
   - Sessions: only a participant can update/complete a session (`403` otherwise).
   - Skills: only your own `UserSkill` rows can be modified/deleted.
@@ -66,7 +72,11 @@ CORS is restricted to the allowlist in `app.js` (frontend origin, default
   so duplicate/unsolicited repeated requests are rejected.
 - Chat and session creation require an **active connection** (`assertCanInteract`).
   Without an accepted connection, returns 403.
-- Role-based access via `restrictTo(...roles)` for admin-only routes.
+- **Suspended users** are blocked from accessing protected routes (checked via `isSuspended` field).
+- Admin users are automatically excluded from student-facing features:
+  - `searchUsers`: `role: { $ne: 'admin' }` filter
+  - `getRecommendations`: `role: { $ne: 'admin' }` filter
+  - `getLeaderboard`: `role: { $ne: 'admin' }` filter
 
 ## Connection access control
 
@@ -80,6 +90,15 @@ This is used by:
 - `chatController` — message sending and conversation listing
 - `sessionController` — session creation
 - `socket/index.js` — realtime message delivery
+
+## Admin account management
+
+- Admin accounts are created via CLI script: `node scripts/create-admin.js --name "Name" --email admin@example.com --password pw`
+- The script handles three cases: create new admin, promote existing user, detect already-admin
+- The login page reads the user's role from the JWT payload and redirects:
+  - `admin` → `/admin`
+  - `student` → `/app/dashboard`
+- Admin portal is protected by `AdminGuard` (checks both authentication and `role === 'admin'`)
 
 ## File uploads
 
@@ -96,6 +115,7 @@ This is used by:
 - The central `errorHandler` returns JSON errors (`success:false`,
   `status:'fail'|'error'`, `message`). In production the `stack` is omitted.
 - Unmatched routes hit a JSON `notFound` handler (no HTML leak).
+- Winston logger captures all errors with request IDs for traceability.
 
 ## Secrets checklist (before production)
 
@@ -104,4 +124,5 @@ This is used by:
 3. Set `NODE_ENV=production` (hides stack traces, enables prod middleware).
 4. Enable a real transactional email provider.
 5. Terminate TLS at the reverse proxy (HTTPS for everything).
-6. Add user role checks for admin-only routes before exposing.
+6. Admin role checks are enforced via `restrictTo('admin')` middleware on all admin routes.
+7. Create admin accounts via `create-admin.js` script — never seed demo admins.
