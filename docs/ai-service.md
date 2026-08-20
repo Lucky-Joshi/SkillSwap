@@ -7,20 +7,34 @@ skill relationships, and resume parsing.
 
 | Method | Path | Body | Description |
 |--------|------|------|-------------|
-| GET | `/health` | — | Liveness probe, returns `{ status: "ok" }` |
+| GET | `/health` | — | Liveness probe, returns status, uptime, graph info, memory usage |
 | POST | `/recommendations` | `{ user, candidates }` | Rank candidates for the user |
 | POST | `/roadmap` | `{ goal }` | Step-by-step learning roadmap |
 | POST | `/resume/parse` | `{ text }` | Extract skills from raw text |
 | POST | `/resume/text` | multipart file | Extract text from PDF/DOCX/TXT |
-| POST | `/skills/graph` | — | Knowledge graph of skills |
+| GET | `/skills/graph` | — | Knowledge graph of skills (GET, not POST) |
 | POST | `/skills/related` | `{ skill }` | Related skills for one skill |
 | POST | `/skills/similarity` | `{ skill_a, skill_b }` | Similarity 0–1 between two skills |
-| POST | `/text/similarity` | `{ a, b }` | Similarity between two texts |
-| POST | `/next-steps` | `{ topic, goal? }` | Suggested next learning topics after a session |
+| POST | `/text/similarity` | `{ skill_a, skill_b }` | Similarity between two texts |
 
 All AI routes are protected server-side by the backend (the backend forwards the
 user's JWT-authenticated request); the service itself trusts its network boundary
 (i.e. it is **not** exposed publicly).
+
+## Health endpoint response
+
+```json
+{
+  "status": "ok",
+  "service": "skillswap-ai",
+  "version": "1.0.0",
+  "uptime_seconds": 168.6,
+  "embedding_model": "all-MiniLM-L6-v2",
+  "use_sbert": false,
+  "graph_nodes": 42,
+  "memory": { "rss_mb": 120.5, "vms_mb": 256.3 }
+}
+```
 
 ## Recommendation scoring
 
@@ -70,9 +84,32 @@ forwarded to the frontend's `CompleteModal` so learners see a suggested learning
 
 ## Resume parsing (`resume_parser.py`)
 
-- Extracts text from **PDF** (PyMuPDF), **DOCX** (python-docx), and **TXT**.
+- Extracts text from **PDF** (pypdf), **DOCX** (python-docx), and **TXT**.
 - Optionally runs spaCy NER when installed; otherwise uses a skills lexicon +
   TF-IDF scoring to extract matching skill names.
+
+---
+
+## Caching (`cache.py`)
+
+Thread-safe in-memory cache with TTL support. Used by:
+- `embeddings.py` — caches computed embeddings (avoids re-encoding)
+- `skill_graph.py` — caches the built skill graph
+- `recommendation.py` — caches recommendation results per user hash
+
+TTL is configurable via `config.py`.
+
+## Config (`config.py`)
+
+Dataclass-based configuration loaded from environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `8000` | Service port |
+| `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | SBERT model name |
+| `USE_SBERT` | `true` | Use SBERT (falls back to TF-IDF if unavailable) |
+| `AI_SIMILARITY_THRESHOLD` | `0.3` | Minimum similarity for skill matching |
+| `AI_TOP_N` | `10` | Top N candidates to return |
 
 ---
 
@@ -116,7 +153,15 @@ so the UI can show whether live AI scoring was used.
 ## Testing
 
 ```bash
+# Health check
 curl http://localhost:8000/health
+
+# Generate a roadmap
 curl -X POST http://localhost:8000/roadmap -H "Content-Type: application/json" -d '{"goal":"Become a Data Scientist"}'
+
+# Check skill similarity
 curl -X POST http://localhost:8000/skills/similarity -H "Content-Type: application/json" -d '{"skill_a":"React","skill_b":"ReactJS"}'
+
+# Get skill graph
+curl http://localhost:8000/skills/graph
 ```
