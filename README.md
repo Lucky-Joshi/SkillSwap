@@ -13,27 +13,30 @@ real time, schedule sessions, and earn badges & certificates.
 
 | Layer      | Technology |
 |------------|------------|
-| Frontend   | React, Vite, Tailwind CSS, React Router, Axios, Framer Motion, React Hook Form, React Hot Toast, Socket.IO Client |
-| Backend    | Node.js, Express, Mongoose, JWT, Bcrypt, Multer, Socket.IO, express-validator, Helmet |
-| Database   | MongoDB (MongoDB Atlas in production) |
-| AI Service | Python, FastAPI, sentence-transformers, scikit-learn, spaCy, networkx, FAISS |
+| Frontend   | React 18, Vite, Tailwind CSS v3.4, React Router v6, Axios, Framer Motion, React Hook Form, React Hot Toast, react-window, Socket.IO Client |
+| Backend    | Node.js, Express, Mongoose, JWT, Bcryptjs, Multer, Socket.IO, express-validator, Helmet, Winston, compression |
+| Database   | MongoDB 7 (MongoDB Atlas in production) |
+| AI Service | Python, FastAPI, sentence-transformers, scikit-learn, spaCy, NetworkX |
 
 ---
 
 ## System Architecture
 
 ```
-┌──────────────────────────────────────────┐
-│         React 18 + Vite Frontend         │   Port 5173
-│   Tailwind v3 · Framer Motion · RHF      │
-│   React Router v6 · Socket.IO Client     │
-└──────────────────┬───────────────────────┘
+┌──────────────────────────────────────────────┐
+│          React 18 + Vite Frontend            │   Port 5173
+│  Tailwind v3 · Framer Motion · RHF           │
+│  React Router v6 · Socket.IO Client          │
+│  Public Website + Protected App + Admin Portal│
+└──────────────────┬───────────────────────────┘
                    │ Axios (REST) / Socket.IO (realtime)
-┌──────────────────▼───────────────────────┐
-│        Node.js + Express Backend         │   Port 5000
-│  JWT auth · Socket.IO · Multer uploads   │
-│  Express-validator · Helmet · XSS-clean  │
-└────────┬─────────────────────┬───────────┘
+┌──────────────────▼───────────────────────────┐
+│        Node.js + Express Backend             │   Port 5000
+│  JWT auth · Socket.IO · Multer uploads       │
+│  Express-validator · Helmet · XSS-clean      │
+│  Winston logging · Rate limiting             │
+│  Role-based access (student / admin)         │
+└────────┬─────────────────────┬───────────────┘
          │                     │
 ┌────────▼────────┐  ┌────────▼────────────┐
 │    MongoDB 7    │  │  FastAPI AI Service  │   Port 8000
@@ -59,27 +62,46 @@ Full architecture, schema, API and deployment docs live in [`docs/`](docs/):
 
 ```
 skillswap/
-├── frontend/          # React + Vite SPA
+├── frontend/              # React + Vite SPA
 │   └── src/
-│       ├── components/  # reusable UI + feature components
-│       ├── pages/       # route pages
-│       ├── layouts/     # authenticated / auth layouts
-│       ├── hooks/       # useDebounce, useSocket ...
-│       ├── context/     # AuthContext, ThemeContext, SocketContext
-│       ├── services/    # axios API + socket clients
-│       ├── utils/       # constants, helpers
-│       └── routes/      # route config
-├── backend/           # Node + Express API
-│   ├── config/        # db, env
-│   ├── controllers/   # request handlers
-│   ├── middleware/    # auth, validation, errors, upload
-│   ├── models/        # Mongoose schemas
-│   ├── routes/        # REST routes
-│   ├── services/      # AI client, recommendation, seeder
-│   ├── socket/        # Socket.IO realtime layer
-│   └── utils/
-├── ai-service/        # FastAPI ML service
+│       ├── components/
+│       │   ├── ui/        # Avatar, Card, Button, Input, Modal, Spinner, etc.
+│       │   ├── feature/   # SkillPicker, SectionDivider, etc.
+│       │   ├── app/       # Sidebar, TopNavbar, MobileNav
+│       │   ├── admin/     # AdminSidebar, AdminTopbar
+│       │   └── public/    # PublicNavbar, HeroSection, CTASection, FeatureGrid
+│       ├── pages/
+│       │   ├── public/    # Home, Features, HowItWorks, AI, About, FAQ, Contact, Privacy, Terms
+│       │   ├── auth/      # Login, Register, ForgotPassword, ResetPassword, VerifyEmail
+│       │   └── app/       # Dashboard, Discover, Recommendations, Sessions, Chat, Profile,
+│       │                  # Settings, Calendar, Notifications, Leaderboard, Roadmap,
+│       │                  # Certificates, Mentorships, and 12 Admin* pages
+│       ├── layouts/       # PublicLayout, MainLayout, AuthLayout, AdminLayout
+│       ├── routes/        # ProtectedRoute, PublicOnlyRoute
+│       ├── hooks/         # useDebounce, useDocumentTitle, useSocket
+│       ├── context/       # AuthContext, ThemeContext, SocketContext
+│       ├── services/      # axios API + socket clients (auth, admin, chat, sessions, etc.)
+│       └── utils/         # constants, helpers, routes
+├── backend/               # Node + Express API
+│   ├── config/            # env.js, db.js
+│   ├── controllers/       # auth, user, admin, match, session, chat, dashboard,
+│   │                      # recommendation, notification, review, badge, certificate,
+│   │                      # skill, institution, leaderboard, ai
+│   ├── middleware/        # auth (JWT + restrictTo), validate, upload, errorHandler, notFound
+│   ├── models/            # User, Skill, UserSkill, Connection, Session, Message,
+│   │                      # Review, Notification, Badge, UserBadge, Certificate,
+│   │                      # Institution, Report
+│   ├── routes/            # REST routes (auth, users, match, session, messages, etc.)
+│   ├── services/          # AI client, recommendation, badge, notification, trust,
+│   │                      # mentorship, cleanup, reminder, seeder
+│   ├── socket/            # Socket.IO realtime layer
+│   ├── scripts/           # seed.js (core data), create-admin.js
+│   ├── events/            # Event bus + handlers
+│   └── utils/             # asyncHandler, AppError, paginate, logger, constants, metrics
+├── ai-service/            # FastAPI ML service
 │   ├── app.py
+│   ├── config.py
+│   ├── cache.py           # TTL in-memory cache
 │   ├── recommendation.py
 │   ├── similarity.py
 │   ├── embeddings.py
@@ -109,7 +131,14 @@ npm run seed                  # seed core data (skills, badges, institutions)
 npm run dev                   # http://localhost:5000
 ```
 
-### 2. AI Service
+### 2. Create an admin account
+
+```bash
+cd backend
+node scripts/create-admin.js --name "Admin User" --email admin@skillswap.io --password Admin@2005
+```
+
+### 3. AI Service
 
 ```bash
 cd ai-service
@@ -123,7 +152,7 @@ uvicorn app:app --reload --port 8000
 > fallbacks). Install `sentence-transformers` and `spacy` for full semantic matching.
 > See [docs/ai-service.md](docs/ai-service.md#run-modes).
 
-### 3. Frontend
+### 4. Frontend
 
 ```bash
 cd frontend
@@ -132,13 +161,30 @@ cp .env.example .env          # VITE_API_URL / VITE_SOCKET_URL
 npm run dev                   # http://localhost:5173
 ```
 
-### 4. Everything at once
+### 5. Everything at once
 
 ```bash
 docker compose up --build
 ```
 
 Open http://localhost:5173 and register a new account.
+
+---
+
+## Frontend Structure
+
+The frontend has three distinct sections:
+
+### Public Website (`/`)
+Marketing pages accessible to everyone: Home, Features, How It Works, AI, About, FAQ, Contact, Privacy, Terms.
+
+### Protected App (`/app/*`)
+Student dashboard behind authentication: Dashboard, Discover, Recommendations, Connections, Chat, Sessions, Calendar, Roadmap, Leaderboard, Notifications, Profile, Settings, Certificates.
+
+### Admin Portal (`/admin/*`)
+Separate layout with its own sidebar and topbar (purple accent theme): Dashboard, Users, Institutions, Skills, Sessions, Badges, Certificates, Reports, AI Monitor, System Health, Analytics, Settings.
+
+**Role-based routing**: Single login page automatically redirects admins to `/admin` and students to `/app/dashboard`.
 
 ---
 
@@ -169,6 +215,9 @@ Compatibility Score = 40% Skill Match
 Semantic skill matching understands that `ReactJS`, `React`, `React.js`,
 `Frontend Development` and `JavaScript Framework` are closely related.
 
+> Admin users are automatically excluded from student-facing discovery, recommendations,
+> and leaderboard.
+
 ---
 
 ## Core User Flow
@@ -184,10 +233,14 @@ Landing → Sign Up → Verify College Email → Complete Profile → Select Ski
 
 ## Security Highlights
 
-- JWT auth with httpOnly-refreshable tokens, bcrypt password hashing
+- JWT auth with bcrypt password hashing (cost 12), httpOnly tokens
 - Input validation (express-validator) + rate limiting
 - Helmet, CORS allowlist, express-mongo-sanitize, XSS cleaning
-- Protected routes on both API and frontend
+- Protected routes on both API and frontend (PublicOnlyRoute, ProtectedRoute, AdminGuard)
+- Role-based access control (student/admin) with `restrictTo()` middleware
+- Admin account creation via CLI script (`create-admin.js`)
+- Suspended user blocking (`isSuspended` field)
+- Admin users hidden from student discovery, recommendations, and leaderboard
 
 ---
 
