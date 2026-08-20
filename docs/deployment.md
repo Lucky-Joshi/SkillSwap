@@ -44,6 +44,17 @@ npm run seed                # seed core data (skills, badges, institutions)
 npm run dev                 # http://localhost:5000 (nodemon)
 ```
 
+### Create admin account
+
+```bash
+node scripts/create-admin.js --name "Admin User" --email admin@skillswap.io --password Admin@2005
+```
+
+This script:
+- Creates a new admin user if the email doesn't exist
+- Promotes an existing student/faculty/alumni user to admin
+- Detects if the user is already an admin
+
 ### AI service (`ai-service/`)
 
 ```bash
@@ -90,6 +101,8 @@ npm run build               # production bundle in dist/
   - `AI_SERVICE_URL` → internal URL of the deployed AI service
   - `CLIENT_URL` → frontend URL (CORS + Socket.IO origin)
   - `UPLOAD_DIR`, `EMAIL_VERIFY_BASE_URL`
+  - `CORS_ORIGINS` → comma-separated allowed origins (defaults to `CLIENT_URL`)
+  - `LOG_LEVEL` → `info` or `warn` in production
 - **AI service**: just set the port (8000). Keep it reachable only by the backend
   (private network / firewall) — it has no auth of its own.
 - Enable health checks on `/api/health` (backend) and `/health` (AI service).
@@ -99,6 +112,28 @@ npm run build               # production bundle in dist/
 - Create a cluster, allow-list deployment IPs, enable TLS (default).
 - Put the SRV connection string in `MONGO_URI`.
 - Run core data seeder to populate skills, badges, and institutions: `npm run seed` with the production env.
+- Create admin accounts: `node scripts/create-admin.js --name "Admin" --email admin@skillswap.io --password <strong-password>`
+
+---
+
+## NPM Scripts
+
+### Backend
+
+| Script | Command | Description |
+|--------|---------|-------------|
+| `dev` | `nodemon server.js` | Development server with auto-reload |
+| `start` | `node server.js` | Production server |
+| `seed` | `node scripts/seed.js` | Seed core data (skills, badges, institutions) |
+| `create-admin` | `node scripts/create-admin.js` | Create or promote admin accounts |
+
+### Frontend
+
+| Script | Command | Description |
+|--------|---------|-------------|
+| `dev` | `vite` | Development server |
+| `build` | `vite build` | Production build |
+| `preview` | `vite preview` | Preview production build |
 
 ---
 
@@ -114,8 +149,14 @@ npm run build               # production bundle in dist/
 | `AI_SERVICE_URL` | backend | `http://localhost:8000` | |
 | `AI_SERVICE_TIMEOUT` | backend | `4000` | ms |
 | `CLIENT_URL` | backend | `http://localhost:5173` | CORS + Socket.IO |
+| `CORS_ORIGINS` | backend | `CLIENT_URL` | comma-separated allowed origins |
 | `UPLOAD_DIR` | backend | `uploads` | |
 | `EMAIL_VERIFY_BASE_URL` | backend | `http://localhost:5173/verify-email` | |
+| `EMAIL_FROM` | backend | `noreply@skillswap.io` | |
+| `LOG_LEVEL` | backend | `debug` | `info`/`warn`/`error` in prod |
+| `RATE_LIMIT_GLOBAL` | backend | `500` | per 15 min window |
+| `RATE_LIMIT_AUTH` | backend | `30` | per 15 min window |
+| `RATE_LIMIT_AI` | backend | `20` | per 15 min window |
 | `VITE_API_URL` | frontend | `''` (same origin) | absolute API base in prod |
 | `VITE_SOCKET_URL` | frontend | `window.location.origin` | Socket.IO origin |
 
@@ -132,3 +173,6 @@ npm run build               # production bundle in dist/
   enable sticky sessions / websocket support.
 - **Sizing**: the AI service is CPU-light in TF-IDF mode; sentence-transformers
   needs ≥ 2 GB RAM per worker.
+- **Caching**: AI service uses thread-safe TTL caches for embeddings, skill graphs,
+  and recommendations to avoid redundant computation.
+- **Logging**: Winston logger with request IDs; configurable via `LOG_LEVEL` env.
