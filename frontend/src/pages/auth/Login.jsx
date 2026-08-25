@@ -18,12 +18,11 @@ export default function Login() {
   const onSubmit = async (values) => {
     setLoading(true);
     try {
-      await login(values.email, values.password);
-      const stored = JSON.parse(localStorage.getItem('skillswap_user'));
-      if (stored?.role === 'admin') {
-        navigate('/admin');
+      const loggedInUser = await login(values.email, values.password);
+      if (loggedInUser?.role === 'admin') {
+        navigate('/admin', { replace: true });
       } else {
-        navigate('/app/dashboard');
+        navigate('/app/dashboard', { replace: true });
       }
     } catch (err) {
       toast.error(err.message);

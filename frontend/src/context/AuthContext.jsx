@@ -69,6 +69,7 @@ export function AuthProvider({ children }) {
       setLoading(false);
       return;
     }
+    setLoading(true);
     let cancelled = false;
     authService
       .me()

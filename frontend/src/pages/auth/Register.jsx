@@ -74,7 +74,7 @@ export default function Register() {
         await saveSkills(res.user.id);
       }
       toast.success('Account created! Your AI matches are ready.');
-      navigate('/app/recommendations');
+      navigate('/app/recommendations', { replace: true });
     } catch (err) {
       toast.error(err.message);
     } finally {

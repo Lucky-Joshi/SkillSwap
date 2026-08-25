@@ -13,7 +13,14 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
     );
   }
   if (!token) return <Navigate to={ROUTES.LOGIN} replace />;
-  if (user?.isSuspended) return <Navigate to="/" replace />;
-  if (adminOnly && user?.role !== 'admin') return <Navigate to={ROUTES.DASHBOARD} replace />;
+  if (!user) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <Spinner />
+      </div>
+    );
+  }
+  if (user.isSuspended) return <Navigate to={ROUTES.LOGIN} replace />;
+  if (adminOnly && user.role !== 'admin') return <Navigate to={ROUTES.DASHBOARD} replace />;
   return children;
 }
