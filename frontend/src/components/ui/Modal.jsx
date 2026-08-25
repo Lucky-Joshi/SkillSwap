@@ -15,11 +15,24 @@ function Modal({ open, onClose, title, children, className = '', size = 'md' }) 
   const titleId = useId();
   const modalRef = useRef(null);
   const previousFocusRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
-  const handleKeyDown = useCallback(
-    (e) => {
+  useEffect(() => {
+    if (!open) return;
+
+    previousFocusRef.current = document.activeElement;
+    const timer = setTimeout(() => {
+      if (modalRef.current) {
+        const focusable = getFocusableElements(modalRef.current);
+        if (focusable.length > 0) focusable[0].focus();
+        else modalRef.current.focus();
+      }
+    }, 50);
+
+    const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key === 'Tab' && modalRef.current) {
@@ -39,30 +52,21 @@ function Modal({ open, onClose, title, children, className = '', size = 'md' }) 
           }
         }
       }
-    },
-    [onClose]
-  );
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open]);
 
   useEffect(() => {
-    if (open) {
-      previousFocusRef.current = document.activeElement;
-      const timer = setTimeout(() => {
-        if (modalRef.current) {
-          const focusable = getFocusableElements(modalRef.current);
-          if (focusable.length > 0) focusable[0].focus();
-          else modalRef.current.focus();
-        }
-      }, 50);
-      document.addEventListener('keydown', handleKeyDown);
-      return () => {
-        clearTimeout(timer);
-        document.removeEventListener('keydown', handleKeyDown);
-      };
-    } else if (previousFocusRef.current) {
+    if (!open && previousFocusRef.current) {
       previousFocusRef.current.focus();
       previousFocusRef.current = null;
     }
-  }, [open, handleKeyDown]);
+  }, [open]);
 
   return (
     <AnimatePresence>
@@ -72,7 +76,7 @@ function Modal({ open, onClose, title, children, className = '', size = 'md' }) 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
-          onClick={onClose}
+          onClick={() => onCloseRef.current()}
           role="presentation"
         >
           <motion.div
@@ -90,7 +94,7 @@ function Modal({ open, onClose, title, children, className = '', size = 'md' }) 
           >
             <div className="flex items-center justify-between border-b border-slate-200/60 px-6 py-4 dark:border-white/10">
               <h3 id={titleId} className="font-display text-lg font-bold">{title}</h3>
-              <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Close dialog">
+              <button onClick={() => onCloseRef.current()} className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Close dialog">
                 <FiX className="h-5 w-5" />
               </button>
             </div>
