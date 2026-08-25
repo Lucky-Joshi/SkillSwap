@@ -45,6 +45,7 @@ const register = asyncHandler(async (req, res, next) => {
     year,
     bio: bio || '',
     availability: availability || 'anytime',
+    status: 'active',
     isVerified: false,
     trustScore: 15,
   });
@@ -74,6 +75,16 @@ const login = asyncHandler(async (req, res, next) => {
     throw new AppError('Invalid email or password.', 401);
   }
 
+  const BLOCKED = ['suspended', 'deleted', 'banned'];
+  if (BLOCKED.includes(user.status)) {
+    const messages = {
+      suspended: 'Your account has been suspended. Please contact support.',
+      deleted: 'Your account has been deleted.',
+      banned: 'Your account has been banned.',
+    };
+    throw new AppError(messages[user.status] || 'Your account is restricted.', 403);
+  }
+
   const token = signToken(user._id);
   const profile = await publicUser(user);
   res.json({ success: true, token, user: profile });
@@ -96,6 +107,7 @@ const verifyEmail = asyncHandler(async (req, res, next) => {
     throw new AppError('Invalid or expired verification link.', 400);
   }
   user.isVerified = true;
+  user.status = 'verified';
   user.verificationToken = undefined;
   await user.save({ validateBeforeSave: false });
   queueTrustRefresh(user._id);

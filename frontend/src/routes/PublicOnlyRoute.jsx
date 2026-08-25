@@ -13,7 +13,7 @@ export default function PublicOnlyRoute({ children }) {
     );
   }
   if (token) {
-    if (user?.role === 'admin') return <Navigate to="/admin" replace />;
+    if (user?.role === 'admin' || user?.role === 'super-admin') return <Navigate to="/admin" replace />;
     return <Navigate to={ROUTES.DASHBOARD} replace />;
   }
   return children;

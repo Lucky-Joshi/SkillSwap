@@ -41,8 +41,11 @@ export default function AdminDashboard() {
     { label: 'Total users', value: s.totalUsers ?? 0, accent: 'from-brand-500 to-indigo-600' },
     { label: 'Active (7d)', value: s.activeUsers ?? 0, accent: 'from-emerald-500 to-teal-600' },
     { label: 'Verified', value: s.verifiedUsers ?? 0, accent: 'from-purple-500 to-fuchsia-600' },
-    { label: 'New this week', value: s.newThisWeek ?? 0, accent: 'from-sky-500 to-blue-600' },
-    { label: 'New this month', value: s.newThisMonth ?? 0, accent: 'from-cyan-500 to-sky-600' },
+    { label: 'Suspended', value: s.suspendedUsers ?? 0, accent: 'from-amber-500 to-orange-600' },
+    { label: 'Deleted', value: s.deletedUsers ?? 0, accent: 'from-red-500 to-rose-600' },
+    { label: 'Banned', value: s.bannedUsers ?? 0, accent: 'from-red-700 to-red-900' },
+    { label: 'New this week', value: s.newUsersThisWeek ?? 0, accent: 'from-sky-500 to-blue-600' },
+    { label: 'New this month', value: s.newUsersThisMonth ?? 0, accent: 'from-cyan-500 to-sky-600' },
     { label: 'Institutions', value: s.totalInstitutions ?? 0, accent: 'from-violet-500 to-purple-600' },
     { label: 'Connections', value: s.totalConnections ?? 0, accent: 'from-rose-500 to-pink-600' },
     { label: 'Active connections', value: s.activeConnections ?? 0, accent: 'from-pink-500 to-rose-600' },
@@ -55,17 +58,18 @@ export default function AdminDashboard() {
     { label: 'Total reviews', value: s.totalReviews ?? 0, accent: 'from-fuchsia-500 to-pink-600' },
     { label: 'Total skills', value: s.totalSkills ?? 0, accent: 'from-indigo-500 to-blue-600' },
     { label: 'Total badges', value: s.totalBadges ?? 0, accent: 'from-purple-500 to-violet-600' },
-    { label: 'Badges issued', value: s.badgesIssued ?? 0, accent: 'from-violet-500 to-indigo-600' },
+    { label: 'Badges issued', value: s.issuedBadges ?? 0, accent: 'from-violet-500 to-indigo-600' },
     { label: 'Total reports', value: s.totalReports ?? 0, accent: 'from-red-500 to-orange-600' },
     { label: 'Pending reports', value: s.pendingReports ?? 0, accent: 'from-amber-500 to-red-500' },
-    { label: 'Avg trust score', value: s.averageTrustScore ?? 0, accent: 'from-brand-600 to-accent' },
+    { label: 'Avg trust score', value: s.avgTrustScore ?? 0, accent: 'from-brand-600 to-accent' },
   ];
 
   const roleColors = {
     admin: 'bg-purple-500/15 text-purple-600 dark:text-purple-400',
-    mentor: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
-    learner: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
-    peer: 'bg-slate-500/15 text-slate-600 dark:text-slate-400',
+    student: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+    faculty: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
+    alumni: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+    'super-admin': 'bg-purple-600/15 text-purple-700 dark:text-purple-300',
   };
 
   return (

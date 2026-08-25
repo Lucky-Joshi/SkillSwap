@@ -9,6 +9,7 @@ const notificationSchema = new mongoose.Schema(
         'connection_request', 'connection_accepted', 'connection_declined',
         'session_booked', 'session_confirmed', 'session_completed', 'session_cancelled',
         'review_received', 'badge_earned', 'message_received', 'reminder', 'system',
+        'user_verified', 'user_suspended', 'user_reactivated', 'user_banned', 'user_deletion_warning',
       ],
       default: 'system',
     },

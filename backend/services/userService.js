@@ -20,6 +20,7 @@ const publicUser = async (user) => {
   return {
     ...base,
     id: String(base._id),
+    status: base.status || 'active',
     canTeach: skills.filter((s) => s.canTeach).map((s) => s.skillId?.name || s.name),
     wantToLearn: skills.filter((s) => s.wantToLearn).map((s) => s.skillId?.name || s.name),
     skills: skills.map((s) => ({

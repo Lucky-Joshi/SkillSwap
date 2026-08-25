@@ -19,7 +19,7 @@ export default function Login() {
     setLoading(true);
     try {
       const loggedInUser = await login(values.email, values.password);
-      if (loggedInUser?.role === 'admin') {
+      if (loggedInUser?.role === 'admin' || loggedInUser?.role === 'super-admin') {
         navigate('/admin', { replace: true });
       } else {
         navigate('/app/dashboard', { replace: true });

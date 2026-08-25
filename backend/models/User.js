@@ -42,7 +42,14 @@ const userSchema = new mongoose.Schema(
       minlength: [8, 'Password must be at least 8 characters'],
       select: false,
     },
-    role: { type: String, enum: ['student', 'faculty', 'alumni', 'admin'], default: 'student' },
+    role: { type: String, enum: ['student', 'faculty', 'alumni', 'admin', 'super-admin'], default: 'student' },
+
+    status: {
+      type: String,
+      enum: ['pending', 'active', 'verified', 'suspended', 'deleted', 'banned'],
+      default: 'pending',
+    },
+
     college: { type: String, default: '', trim: true },
     qualification: {
       type: String,
@@ -107,14 +114,32 @@ const userSchema = new mongoose.Schema(
     rating: { type: Number, default: 0 },
     reviewCount: { type: Number, default: 0 },
     points: { type: Number, default: 0 },
+
     isVerified: { type: Boolean, default: false },
+    verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    verifiedAt: { type: Date },
     verificationToken: { type: String, select: false },
+
     resetToken: { type: String, select: false },
     resetTokenExpiry: { type: Date, select: false },
+
     lastActiveAt: { type: Date, default: Date.now },
     isTest: { type: Boolean, default: false },
     isDemo: { type: Boolean, default: false },
-    isSuspended: { type: Boolean, default: false },
+
+    suspensionReason: { type: String, default: '' },
+    suspendedUntil: { type: Date },
+    suspendedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    suspensionNotes: { type: String, default: '' },
+
+    banReason: { type: String, default: '' },
+    bannedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    bannedAt: { type: Date },
+
+    deletedAt: { type: Date },
+    deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    deletionType: { type: String, enum: ['soft', 'permanent', ''], default: '' },
+
     trustScore: { type: Number, min: 0, max: 100, default: 0 },
     sessionsCompleted: { type: Number, default: 0 },
     hoursLearned: { type: Number, default: 0 },
@@ -147,11 +172,9 @@ userSchema.methods.comparePassword = function comparePassword(candidate) {
 };
 
 userSchema.methods.updateRating = function updateRating() {
-  // Recalculate aggregate rating from reviews (done via Review controller/service).
   return this;
 };
 
-userSchema.index({ email: 1 });
 userSchema.index({ name: 'text', bio: 'text' });
 userSchema.index({ college: 1 });
 userSchema.index({ role: 1 });
@@ -159,5 +182,6 @@ userSchema.index({ points: -1 });
 userSchema.index({ rating: -1 });
 userSchema.index({ createdAt: -1 });
 userSchema.index({ isTest: 1 });
+userSchema.index({ status: 1 });
 
 module.exports = mongoose.model('User', userSchema);

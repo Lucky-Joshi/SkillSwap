@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { ROUTES } from '../utils/routes';
 import Spinner from '../components/ui/Spinner';
 
+const BLOCKED_STATUSES = ['suspended', 'deleted', 'banned'];
+
 export default function ProtectedRoute({ children, adminOnly = false }) {
   const { token, user, loading } = useAuth();
   if (loading) {
@@ -20,7 +22,7 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
       </div>
     );
   }
-  if (user.isSuspended) return <Navigate to={ROUTES.LOGIN} replace />;
-  if (adminOnly && user.role !== 'admin') return <Navigate to={ROUTES.DASHBOARD} replace />;
+  if (BLOCKED_STATUSES.includes(user.status)) return <Navigate to={ROUTES.LOGIN} replace />;
+  if (adminOnly && user.role !== 'admin' && user.role !== 'super-admin') return <Navigate to={ROUTES.DASHBOARD} replace />;
   return children;
 }

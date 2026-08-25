@@ -68,6 +68,7 @@ const AdminAIMonitor = Loadable(lazy(() => import('./pages/app/AdminAIMonitor'))
 const AdminSystemHealth = Loadable(lazy(() => import('./pages/app/AdminSystemHealth')));
 const AdminAnalytics = Loadable(lazy(() => import('./pages/app/AdminAnalytics')));
 const AdminSettings = Loadable(lazy(() => import('./pages/app/AdminSettings')));
+const AdminAuditLogs = Loadable(lazy(() => import('./pages/app/AdminAuditLogs')));
 
 const NotFound = Loadable(lazy(() => import('./pages/NotFound')));
 
@@ -83,7 +84,7 @@ function AppLayout() {
 
 function AdminGuard() {
   return (
-    <ProtectedRoute>
+    <ProtectedRoute adminOnly>
       <AdminLayout>
         <Outlet />
       </AdminLayout>
@@ -160,6 +161,7 @@ export default function App() {
               <Route path="ai" element={<AdminAIMonitor />} />
               <Route path="health" element={<AdminSystemHealth />} />
               <Route path="analytics" element={<AdminAnalytics />} />
+              <Route path="audit-logs" element={<AdminAuditLogs />} />
               <Route path="settings" element={<AdminSettings />} />
             </Route>
 

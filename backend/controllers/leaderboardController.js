@@ -8,12 +8,12 @@ const { paginate, paginateResults } = require('../utils/paginate');
 const getLeaderboard = asyncHandler(async (req, res) => {
   const { page, limit, skip } = paginate(req);
   const [users, total] = await Promise.all([
-    User.find({ points: { $gt: 0 }, role: { $ne: 'admin' } })
+    User.find({ points: { $gt: 0 }, role: { $ne: 'admin' }, status: { $nin: ['suspended', 'deleted', 'banned'] } })
       .sort({ points: -1, rating: -1 })
       .select('name avatar college department year points rating reviewCount')
       .skip(skip)
       .limit(limit),
-    User.countDocuments({ points: { $gt: 0 }, role: { $ne: 'admin' } }),
+    User.countDocuments({ points: { $gt: 0 }, role: { $ne: 'admin' }, status: { $nin: ['suspended', 'deleted', 'banned'] } }),
   ]);
 
   const badgeCounts = await UserBadge.aggregate([

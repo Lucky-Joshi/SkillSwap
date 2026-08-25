@@ -42,6 +42,7 @@ const getRecommendations = asyncHandler(async (req, res) => {
     _id: { $ne: req.user._id },
     isVerified: true,
     role: { $ne: 'admin' },
+    status: { $nin: ['suspended', 'deleted', 'banned'] },
   }).lean();
 
   const candidatesWithSkills = await withSkills(candidates);

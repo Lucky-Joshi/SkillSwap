@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   FiGrid, FiUsers, FiMapPin, FiLayers, FiClock, FiAward, FiFileText,
   FiAlertTriangle, FiActivity, FiHeart, FiBarChart2, FiSettings, FiLogOut,
-  FiMoon, FiSun, FiShield,
+  FiMoon, FiSun, FiShield, FiList,
 } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: '/admin/badges', label: 'Badges', icon: FiAward },
   { to: '/admin/certificates', label: 'Certificates', icon: FiFileText },
   { to: '/admin/reports', label: 'Reports', icon: FiAlertTriangle },
+  { to: '/admin/audit-logs', label: 'Audit Logs', icon: FiList },
   { to: '/admin/ai', label: 'AI Monitor', icon: FiActivity },
   { to: '/admin/health', label: 'System Health', icon: FiHeart },
   { to: '/admin/analytics', label: 'Analytics', icon: FiBarChart2 },

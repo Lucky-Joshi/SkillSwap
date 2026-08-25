@@ -267,7 +267,7 @@ const getPortfolio = asyncHandler(async (req, res, next) => {
 const searchUsers = asyncHandler(async (req, res) => {
   const { search, skill, department, year, availability, college, qualification, mentor, verified } = req.query;
   const { page, limit, skip } = paginate(req);
-  const filter = { _id: { $ne: req.user._id }, role: { $ne: 'admin' } };
+  const filter = { _id: { $ne: req.user._id }, role: { $ne: 'admin' }, status: { $nin: ['suspended', 'deleted', 'banned'] } };
 
   if (search) {
     filter.$or = [

@@ -7,8 +7,15 @@ export const getAdminDashboard = () => unwrap(api.get('/admin/dashboard'));
 export const listAdminUsers = (params) => unwrap(api.get('/admin/users', { params }));
 export const getAdminUser = (id) => unwrap(api.get(`/admin/users/${id}`));
 export const updateAdminUser = (id, data) => unwrap(api.put(`/admin/users/${id}`, data));
-export const suspendAdminUser = (id) => unwrap(api.patch(`/admin/users/${id}/suspend`));
-export const deleteAdminUser = (id) => unwrap(api.delete(`/admin/users/${id}`));
+export const verifyAdminUser = (id, data) => unwrap(api.post(`/admin/users/${id}/verify`, data));
+export const suspendAdminUser = (id, data) => unwrap(api.post(`/admin/users/${id}/suspend`, data));
+export const softDeleteAdminUser = (id, data) => unwrap(api.post(`/admin/users/${id}/delete`, data));
+export const permanentDeleteAdminUser = (id, data) => unwrap(api.delete(`/admin/users/${id}`, { data }));
+export const reactivateAdminUser = (id, data) => unwrap(api.post(`/admin/users/${id}/reactivate`, data));
+export const banAdminUser = (id, data) => unwrap(api.post(`/admin/users/${id}/ban`, data));
+
+// Audit Logs
+export const listAdminAuditLogs = (params) => unwrap(api.get('/admin/audit-logs', { params }));
 
 // Institutions
 export const listAdminInstitutions = (params) => unwrap(api.get('/admin/institutions', { params }));

@@ -13,6 +13,7 @@ const MOBILE_NAV = [
   { to: '/admin/badges', label: 'Badges' },
   { to: '/admin/certificates', label: 'Certificates' },
   { to: '/admin/reports', label: 'Reports' },
+  { to: '/admin/audit-logs', label: 'Audit Logs' },
   { to: '/admin/ai', label: 'AI Monitor' },
   { to: '/admin/health', label: 'System Health' },
   { to: '/admin/analytics', label: 'Analytics' },
