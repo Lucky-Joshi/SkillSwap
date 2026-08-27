@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.5.0] - 2025-08-25
+## [0.5.0] - 2026-08-25
 
 ### Added
 - Admin dashboard with detailed system statistics and health monitoring (`e12d835`)
@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `models_cache` entry in `.gitignore` (`445c9e4`)
 - Removed unused `psutil` import from AI service (`aeb6c8b`)
 
-## [0.4.0] - 2025-08-20
+## [0.4.0] - 2026-08-20
 
 ### Added
 - Enhanced user profile features including endorsements system (`3d1051a`)
@@ -56,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Profile feature rendering and accessibility improvements (`6c5f018`)
 
-## [0.3.0] - 2025-08-15
+## [0.3.0] - 2026-08-15
 
 ### Added
 - Mentorship relationship management and session tracking (`3acbf1d`)
@@ -79,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Session reminders now fire reliably (`27afcb5`)
 
-## [0.2.0] - 2025-08-10
+## [0.2.0] - 2026-08-10
 
 ### Added
 - Environment configuration, database connection, and core controllers (`f16dab2`)
@@ -98,7 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Expanded core documentation (`5a526c5`)
 
-## [0.1.0] - 2025-08-01
+## [0.1.0] - 2026-08-01
 
 ### Added
 - Initial `.gitignore` configuration (`8b1f4ad`)
