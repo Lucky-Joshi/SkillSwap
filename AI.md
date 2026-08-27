@@ -1,0 +1,167 @@
+# SkillSwap — AI Service
+
+Python FastAPI microservice on port `8000` that powers semantic matching, roadmaps,
+skill relationships, and resume parsing.
+
+## Endpoints
+
+| Method | Path | Body | Description |
+|--------|------|------|-------------|
+| GET | `/health` | — | Liveness probe, returns status, uptime, graph info, memory usage |
+| POST | `/recommendations` | `{ user, candidates }` | Rank candidates for the user |
+| POST | `/roadmap` | `{ goal }` | Step-by-step learning roadmap |
+| POST | `/resume/parse` | `{ text }` | Extract skills from raw text |
+| POST | `/resume/text` | multipart file | Extract text from PDF/DOCX/TXT |
+| GET | `/skills/graph` | — | Knowledge graph of skills (GET, not POST) |
+| POST | `/skills/related` | `{ skill }` | Related skills for one skill |
+| POST | `/skills/similarity` | `{ skill_a, skill_b }` | Similarity 0–1 between two skills |
+| POST | `/text/similarity` | `{ skill_a, skill_b }` | Similarity between two texts |
+
+All AI routes are protected server-side by the backend (the backend forwards the
+user's JWT-authenticated request); the service itself trusts its network boundary
+(i.e. it is **not** exposed publicly).
+
+## Health endpoint response
+
+```json
+{
+  "status": "ok",
+  "service": "skillswap-ai",
+  "version": "1.0.0",
+  "uptime_seconds": 168.6,
+  "embedding_model": "all-MiniLM-L6-v2",
+  "use_sbert": false,
+  "graph_nodes": 42,
+  "memory": { "rss_mb": 120.5, "vms_mb": 256.3 }
+}
+```
+
+## Recommendation scoring
+
+The backend's `recommendationService.js` (and the FastAPI `recommendation.py`)
+compute a compatibility score:
+
+```
+Compatibility = 40% Skill Match
+              + 20% Mutual Learning Interest
+              + 15% Availability
+              + 10% Teaching Rating
+              + 10% Experience Level
+              +  5% Department Similarity
+```
+
+### Skill matching (`similarity.py`)
+
+- Uses the **SBERT** model (`sentence-transformers/all-MiniLM-L6-v2`) to embed
+  skill names when available.
+- Falls back to **TF-IDF** (scikit-learn) cosine similarity when the heavy
+  transformers stack is not installed.
+- Handles aliases and near-synonyms: `ReactJS` ≈ `React` ≈ `React.js` (measured
+  similarity ≈ 0.89), so a mentor listing `React` is found by a learner searching
+  for `ReactJS`.
+
+### `can_cover` (`skill_graph.py`)
+
+A networkx **prerequisite graph** (edge `prerequisite → advanced`). `can_cover(mentorSkill, learnerSkill)`
+returns true if the skills are connected within ≤ 2 hops in either direction, letting
+a mentor with `Python` cover a learner wanting `Machine Learning` (through intermediate
+skills like `NumPy`).
+
+## Roadmap generation (`roadmap.py`)
+
+Named templates for common goals (`Data Scientist`, `Web Developer`, `ML Engineer`,
+`Android Developer`, `UI/UX Designer`) plus a default generic chain. Each step has a
+`title`, `description`, `skills`, `weeks` and `hours`; the total estimated hours is
+computed across steps.
+
+## Next-steps suggestions (`next-steps` endpoint)
+
+Called by `sessionController.completeSession()` after a session is marked complete.
+Takes a `topic` (the completed session's topic) and optional `goal` and returns
+`{ nextSteps: [{ topic, description }] }` — 3 AI-suggested follow-up topics. Falls
+back to the built-in heuristic fallback when the AI service is down. The response is
+forwarded to the frontend's `CompleteModal` so learners see a suggested learning path.
+
+## Resume parsing (`resume_parser.py`)
+
+- Extracts text from **PDF** (pypdf), **DOCX** (python-docx), and **TXT**.
+- Optionally runs spaCy NER when installed; otherwise uses a skills lexicon +
+  TF-IDF scoring to extract matching skill names.
+
+---
+
+## Caching (`cache.py`)
+
+Thread-safe in-memory cache with TTL support. Used by:
+- `embeddings.py` — caches computed embeddings (avoids re-encoding)
+- `skill_graph.py` — caches the built skill graph
+- `recommendation.py` — caches recommendation results per user hash
+
+TTL is configurable via `config.py`.
+
+## Config (`config.py`)
+
+Dataclass-based configuration loaded from environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `8000` | Service port |
+| `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | SBERT model name |
+| `USE_SBERT` | `true` | Use SBERT (falls back to TF-IDF if unavailable) |
+| `AI_SIMILARITY_THRESHOLD` | `0.3` | Minimum similarity for skill matching |
+| `AI_TOP_N` | `10` | Top N candidates to return |
+
+---
+
+## Run modes
+
+### Lightweight (zero ML deps)
+
+```bash
+cd ai-service
+pip install fastapi uvicorn python-multipart pymupdf python-docx scikit-learn networkx
+uvicorn app:app --reload --port 8000
+```
+
+Everything works: similarity and recommendations use TF-IDF, roadmaps/graphs use the
+curated templates, resume text extraction works.
+
+### Full semantic mode
+
+```bash
+pip install sentence-transformers spacy
+python -m spacy download en_core_web_sm
+```
+
+`embeddings.py` auto-detects `sentence-transformers` at import time and upgrades the
+matcher from TF-IDF to SBERT embeddings. Nothing else changes — `requirements.txt`
+lists the heavy packages as **commented-out optional extras** so a plain install
+stays fast.
+
+## Integration with the backend
+
+`backend/services/aiClient.js`:
+
+- base URL `AI_SERVICE_URL` (default `http://localhost:8000`)
+- timeout `AI_SERVICE_TIMEOUT` (default 4000 ms)
+- `tryAi(path, payload, fallback)` — on error/timeout, returns the JS heuristic
+  fallback so the app never breaks when the AI service is down.
+
+The `/api/recommendations` and `/api/ai/*` responses include `aiService: true|false`
+so the UI can show whether live AI scoring was used.
+
+## Testing
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Generate a roadmap
+curl -X POST http://localhost:8000/roadmap -H "Content-Type: application/json" -d '{"goal":"Become a Data Scientist"}'
+
+# Check skill similarity
+curl -X POST http://localhost:8000/skills/similarity -H "Content-Type: application/json" -d '{"skill_a":"React","skill_b":"ReactJS"}'
+
+# Get skill graph
+curl http://localhost:8000/skills/graph
+```

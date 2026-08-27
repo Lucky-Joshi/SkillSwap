@@ -1,5 +1,9 @@
 # SkillSwap — AI-Powered Peer Learning & Skill Exchange Platform
 
+[![CI](https://github.com/Lucky-Joshi/SkillSwap/actions/workflows/ci.yml/badge.svg)](https://github.com/Lucky-Joshi/SkillSwap/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 SkillSwap is a full-stack, AI-powered peer learning and skill exchange platform for
 colleges. Students create verified profiles, list skills they know and want to learn,
 get AI-generated mentor/learner/peer recommendations, exchange learning requests, chat in
@@ -45,23 +49,48 @@ real time, schedule sessions, and earn badges & certificates.
                      └─────────────────────┘
 ```
 
-Full architecture, schema, API and deployment docs live in [`docs/`](docs/):
+---
 
-| Document | Contents |
-|----------|----------|
-| [Architecture](docs/architecture.md) | System architecture, diagrams, component hierarchy, user journeys, AI workflow |
-| [Database Schema](docs/database-schema.md) | ER diagram + MongoDB schema definitions |
-| [API Reference](docs/api.md) | Complete REST API + Socket.IO events |
-| [AI Service](docs/ai-service.md) | FastAPI endpoints & ML workflow |
-| [Security](docs/security.md) | Auth, hardening, error handling |
-| [Deployment](docs/deployment.md) | Docker, Atlas, Vercel, Railway/Render |
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [**Architecture**](ARCHITECTURE.md) | System design, component hierarchy, user journeys |
+| [**API Reference**](API.md) | Complete REST API + Socket.IO events (120+ endpoints) |
+| [**Database**](DATABASE.md) | ER diagram + MongoDB schema definitions (14 models) |
+| [**AI Service**](AI.md) | FastAPI endpoints & ML pipeline |
+| [**Deployment**](DEPLOYMENT.md) | Docker, Railway, Vercel, MongoDB Atlas |
+| [**Security**](SECURITY.md) | Auth, hardening, rate limiting |
+| [**Docker**](DOCKER.md) | Container setup and commands |
+| [**Features**](FEATURES.md) | All features categorized by role |
+| [**User Flow**](USER_FLOW.md) | Complete user journey diagrams |
+| [**Admin Guide**](ADMIN.md) | Admin portal documentation |
+| [**Changelog**](CHANGELOG.md) | Version history |
+| [**Roadmap**](ROADMAP.md) | Future releases |
+| [**Contributing**](CONTRIBUTING.md) | How to contribute |
+| [**Testing**](TESTING.md) | Testing guide |
+| [**Release**](RELEASE.md) | Release process |
+| [**FAQ**](FAQ.md) | Frequently asked questions |
+| [**Privacy Policy**](PRIVACY_POLICY.md) | Privacy policy |
+| [**Terms**](TERMS_AND_CONDITIONS.md) | Terms of service |
+
+### Detailed Docs (`docs/`)
+
+| Directory | Contents |
+|-----------|----------|
+| [docs/api/](docs/api/) | API docs by domain |
+| [docs/database/](docs/database/) | Schema details |
+| [docs/ai/](docs/ai/) | ML pipeline internals |
+| [docs/architecture/](docs/architecture/) | System diagrams |
+| [docs/deployment/](docs/deployment/) | Platform-specific guides |
+| [docs/diagrams/](docs/diagrams/) | Visual diagrams |
 
 ---
 
 ## Folder Structure
 
 ```
-skillswap/
+SkillSwap/
 ├── frontend/              # React + Vite SPA
 │   └── src/
 │       ├── components/
@@ -108,8 +137,13 @@ skillswap/
 │   ├── skill_graph.py
 │   ├── roadmap.py
 │   └── resume_parser.py
-├── docs/
-└── docker-compose.yml
+├── docs/                  # Detailed documentation
+├── .github/               # CI/CD, templates
+├── docker-compose.yml
+├── LICENSE
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+└── README.md
 ```
 
 ---
@@ -147,10 +181,6 @@ python -m venv .venv
 pip install -r requirements.txt
 uvicorn app:app --reload --port 8000
 ```
-
-> The AI service runs with zero ML dependencies out of the box (heuristic + TF-IDF
-> fallbacks). Install `sentence-transformers` and `spacy` for full semantic matching.
-> See [docs/ai-service.md](docs/ai-service.md#run-modes).
 
 ### 4. Frontend
 
@@ -244,9 +274,20 @@ Landing → Sign Up → Verify College Email → Complete Profile → Select Ski
 
 ---
 
-## Future Scope
+## Contributing
 
-Multi-college networking · Alumni mentorship · Internship referrals · AI interview
-coach · AI skill-gap analysis · Hackathon team builder · Faculty
-recommendations · Placement readiness dashboard · Mobile app · Video calling ·
-Calendar integration · QR attendance for sessions.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+---
+
+## License
+
+This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
+
+---
+
+## Contact
+
+**Lucky Joshi** — [developer.lucky.joshi@gmail.com](mailto:developer.lucky.joshi@gmail.com)
+
+Project: [https://github.com/Lucky-Joshi/SkillSwap](https://github.com/Lucky-Joshi/SkillSwap)
