@@ -39,7 +39,7 @@ delivery. Email verification and email-based password reset are not included.
 
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | Runtime Postgres connection (use Supabase's pooler if needed) |
+| `DATABASE_URL` | Runtime Postgres connection; use Supabase's IPv4 session pooler on Render |
 | `DIRECT_URL` | Direct Postgres connection for migrations |
 | `JWT_SECRET` | Unique random secret, at least 32 characters |
 | `CLIENT_URL` | HTTPS frontend origin |

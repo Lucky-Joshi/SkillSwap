@@ -95,7 +95,7 @@ npm run build               # production bundle in dist/
 
 - Two services, one per Dockerfile.
 - **Backend env**:
-  - `DATABASE_URL` → Supabase Postgres runtime connection string
+  - `DATABASE_URL` → Supabase Supavisor session-pooler URL (IPv4-compatible on Render)
   - `DIRECT_URL` → Supabase Postgres migration connection string
   - `JWT_SECRET` → unique random value, at least 32 characters
   - `AI_SERVICE_URL` → internal URL of the deployed AI service

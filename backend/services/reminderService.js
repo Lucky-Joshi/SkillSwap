@@ -12,8 +12,10 @@ const sendSessionReminders = async ({ withinMs = 60 * 60 * 1000, toleranceMs = 2
   const windowEnd = now + withinMs;
 
   const sessions = await prisma.session.findMany({
-    status: 'confirmed',
-    reminderSent: false,
+    where: {
+      status: 'confirmed',
+      reminderSent: false,
+    },
   });
 
   const due = sessions.filter((s) => {
