@@ -31,6 +31,13 @@ waits for the AI service health check before starting the API.
 
 Use Node.js 20.19+ (Node 22 recommended) or the included Docker image. Set:
 
+For a Render native Node service, set the root directory to `backend`, the build
+command to `npm ci && npm run prisma:generate`, and the start command to `npm start`.
+Configure the required production variables in the Render service environment;
+never copy local secrets into the repository. The API starts without email delivery
+configured, but registration, verification resend, and password reset return `503`
+until both `EMAIL_FROM` and `RESEND_API_KEY` are present.
+
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | Runtime Postgres connection (use Supabase's pooler if needed) |
@@ -53,6 +60,12 @@ with `npm run create-admin -- --name "Admin" --email admin@example.com --passwor
 
 Build from `ai-service/Dockerfile` and set its internal port to `8000`. Keep it on a
 private network because the service does not authenticate requests itself.
+
+For a Render native Python service, set the root directory to `ai-service`, the build
+command to `pip install -r requirements.txt`, the start command to
+`uvicorn app:app --host 0.0.0.0 --port $PORT`, and the health check path to `/health`.
+Keep spaces between every command argument; without them Uvicorn treats the options
+as part of the app name and port argument.
 
 ## Health and operations
 

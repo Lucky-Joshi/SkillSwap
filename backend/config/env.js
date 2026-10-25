@@ -18,7 +18,6 @@ if (env === 'production') {
   if (jwtSecret.length < 32 || jwtSecret === 'skillswap-dev-secret') missing.push('JWT_SECRET (at least 32 characters)');
   if (!process.env.CLIENT_URL) missing.push('CLIENT_URL');
   if (!process.env.EMAIL_FROM) missing.push('EMAIL_FROM');
-  if (!process.env.RESEND_API_KEY) missing.push('RESEND_API_KEY');
   if (!/^https:\/\//i.test(process.env.CLIENT_URL || '')) missing.push('CLIENT_URL must use HTTPS');
   if (corsOrigins.some((origin) => origin === '*' || !/^https:\/\//i.test(origin))) missing.push('CORS_ORIGINS must contain HTTPS origins only');
   if (!/^https:\/\//i.test(process.env.EMAIL_VERIFY_BASE_URL || '')) missing.push('EMAIL_VERIFY_BASE_URL must use HTTPS');
@@ -41,6 +40,7 @@ const config = {
   emailVerifyBaseUrl: process.env.EMAIL_VERIFY_BASE_URL || 'http://localhost:5173/verify-email',
   emailFrom: process.env.EMAIL_FROM || '',
   resendApiKey: process.env.RESEND_API_KEY || '',
+  emailEnabled: Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM),
   corsOrigins,
   logLevel: process.env.LOG_LEVEL || (env === 'production' ? 'info' : 'debug'),
   rateLimit: {

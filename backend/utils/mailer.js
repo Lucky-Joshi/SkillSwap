@@ -1,8 +1,11 @@
 const config = require('../config/env');
+const AppError = require('./AppError');
 
 const sendMail = async ({ to, subject, html }) => {
   if (!config.resendApiKey || !config.emailFrom) {
-    if (config.env === 'production') throw new Error('Email delivery is not configured. Set RESEND_API_KEY and EMAIL_FROM.');
+    if (config.env === 'production') {
+      throw new AppError('Email delivery is unavailable. Configure RESEND_API_KEY and EMAIL_FROM on the backend service.', 503);
+    }
     console.info(`[mail:development] ${subject} -> ${to}\n${html.replace(/<[^>]+>/g, '').trim()}`);
     return { delivered: false, mode: 'development' };
   }

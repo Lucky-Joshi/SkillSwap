@@ -11,6 +11,11 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+const requireEmailDelivery = () => {
+  if (!config.emailEnabled) {
+    throw new AppError('Email delivery is unavailable. Configure RESEND_API_KEY and EMAIL_FROM on the backend service.', 503);
+  }
+};
 
 const enumValue = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 const qualificationToDb = (value) => enumValue(value);
@@ -34,6 +39,7 @@ const sendVerificationEmail = async (user) => {
 // @route  POST /api/auth/register
 // @access public
 const register = asyncHandler(async (req, res, next) => {
+  requireEmailDelivery();
   const { name, email, password, college, qualification, department, year, bio, availability } = req.body;
 
   if (!college || !qualification || !department || !year) {
@@ -141,6 +147,7 @@ const verifyEmail = asyncHandler(async (req, res, next) => {
 // @route  POST /api/auth/resend-verification
 // @access public
 const resendVerification = asyncHandler(async (req, res, next) => {
+  requireEmailDelivery();
   const { email } = req.body;
   const user = await prisma.user.findUnique({ where: { email } });
   if (user && !user.isVerified) await sendVerificationEmail(user);
@@ -150,6 +157,7 @@ const resendVerification = asyncHandler(async (req, res, next) => {
 // @route  POST /api/auth/forgot-password
 // @access public
 const forgotPassword = asyncHandler(async (req, res, next) => {
+  requireEmailDelivery();
   const { email } = req.body;
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) return res.json({ success: true, message: 'If an account exists, a password reset link has been sent.' });
