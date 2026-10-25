@@ -22,7 +22,7 @@ const getRecommendations = asyncHandler(async (req, res) => {
   const [candidateRows, meRow, connections] = await Promise.all([
     prisma.user.findMany({
       where: {
-        id: { not: req.user.id }, isVerified: true, role: { notIn: ['admin', 'super_admin'] }, profileVisibility: { not: 'private' },
+        id: { not: req.user.id }, role: { notIn: ['admin', 'super_admin'] }, profileVisibility: { not: 'private' },
         status: { notIn: ['suspended', 'deleted', 'banned'] },
       },
       include: skillInclude,

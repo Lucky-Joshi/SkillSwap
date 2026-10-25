@@ -8,7 +8,7 @@ import CTASection from '../../components/public/CTASection';
 import { ROUTES } from '../../utils/routes';
 
 const STEPS = [
-  { n: '01', title: 'Create Profile', desc: 'Sign up with your college email, fill in your academic details and verify your account.', icon: FiUser },
+  { n: '01', title: 'Create Profile', desc: 'Sign up with your college email and fill in your academic details.', icon: FiUser },
   { n: '02', title: 'Add Skills', desc: 'Pick the skills you can teach and the ones you want to learn. Set your proficiency level for each.', icon: FiBookOpen },
   { n: '03', title: 'AI Finds Matches', desc: 'Our recommendation engine scores every student by compatibility — skill match, mutual interest, availability and more.', icon: FiZap },
   { n: '04', title: 'Connect', desc: 'Send a mentorship or peer learning request. The other student accepts or rejects — you get notified instantly.', icon: FiMessageSquare },

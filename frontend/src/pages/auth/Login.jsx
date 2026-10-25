@@ -50,11 +50,6 @@ export default function Login() {
           {...register('password', { required: 'Password is required' })}
           error={errors.password?.message}
         />
-        <div className="flex items-center justify-end">
-          <Link to="/forgot-password" className="text-xs font-semibold text-brand-600 hover:underline dark:text-brand-300">
-            Forgot password?
-          </Link>
-        </div>
         <Button type="submit" className="w-full" loading={loading}>Log in</Button>
       </form>
       <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">

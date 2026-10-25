@@ -18,9 +18,6 @@ services:
       UPLOAD_DIR: /app/uploads
       RESUME_DIR: /tmp/skillswap-resumes
       TRUST_PROXY: ${TRUST_PROXY:-false}
-      EMAIL_VERIFY_BASE_URL: ${EMAIL_VERIFY_BASE_URL:?Set the deployed verification URL}
-      EMAIL_FROM: ${EMAIL_FROM:?Set a verified sender address}
-      RESEND_API_KEY: ${RESEND_API_KEY:?Set the Resend API key}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
       ai-service:

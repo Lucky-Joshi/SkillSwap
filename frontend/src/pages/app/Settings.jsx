@@ -119,7 +119,7 @@ export default function Settings() {
               <div className="text-sm">
                 <div className={`font-semibold ${trustLabel(user?.trustScore || 0).color}`}>{trustLabel(user?.trustScore || 0).label}</div>
                 <p className="mt-0.5 text-xs text-slate-400">
-                  Complete your profile, verify your email and stay active to raise it.
+                  Complete your profile, get staff verification and stay active to raise it.
                 </p>
               </div>
             </div>

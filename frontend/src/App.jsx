@@ -38,9 +38,6 @@ const Terms = Loadable(lazy(() => import('./pages/public/Terms')));
 
 const Login = Loadable(lazy(() => import('./pages/auth/Login')));
 const Register = Loadable(lazy(() => import('./pages/auth/Register')));
-const ForgotPassword = Loadable(lazy(() => import('./pages/auth/ForgotPassword')));
-const ResetPassword = Loadable(lazy(() => import('./pages/auth/ResetPassword')));
-const VerifyEmail = Loadable(lazy(() => import('./pages/auth/VerifyEmail')));
 
 const Dashboard = Loadable(lazy(() => import('./pages/app/Dashboard')));
 const Discover = Loadable(lazy(() => import('./pages/app/Discover')));
@@ -123,9 +120,6 @@ export default function App() {
 
             <Route path="/login" element={<AuthPage title="Welcome back" subtitle="Log in to continue learning and teaching."><Login /></AuthPage>} />
             <Route path="/register" element={<AuthPage title="Create your account" subtitle=""><Register /></AuthPage>} />
-            <Route path="/forgot-password" element={<AuthPage title="Reset your password" subtitle="Enter your email and we'll send you a reset link."><ForgotPassword /></AuthPage>} />
-            <Route path="/reset-password/:token" element={<AuthPage title="Set new password" subtitle=""><ResetPassword /></AuthPage>} />
-            <Route path="/verify-email" element={<AuthPage title="Verify your email" subtitle=""><VerifyEmail /></AuthPage>} />
 
             <Route path="/app" element={<AppLayout />}>
               <Route index element={<Navigate to="dashboard" replace />} />

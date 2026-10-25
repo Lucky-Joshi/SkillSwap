@@ -4,7 +4,7 @@ The SkillSwap API is organized by domain. See the main [API.md](../API.md) for a
 
 | Document | Endpoints |
 |----------|-----------|
-| [auth.md](auth.md) | Registration, login, email verification, password reset |
+| [API reference](../api.md) | Registration, login, current user |
 | [users.md](users.md) | Profile CRUD, skills, endorsements, leaderboard |
 | [connections.md](connections.md) | Mentorship & peer learning requests |
 | [sessions.md](sessions.md) | Session scheduling, completion, calendar |

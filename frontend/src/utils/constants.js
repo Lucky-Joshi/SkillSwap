@@ -31,7 +31,7 @@ export const DEPARTMENT_OPTIONS = [
 ];
 
 export const TRUST_BREAKDOWN = [
-  { label: 'Verified email', points: 30 },
+  { label: 'Staff-verified profile', points: 30 },
   { label: 'Complete academic details', points: 10 },
   { label: 'Bio', points: 10 },
   { label: 'Avatar', points: 5 },

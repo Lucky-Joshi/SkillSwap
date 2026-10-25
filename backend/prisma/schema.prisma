@@ -272,11 +272,6 @@ model User {
   verifiedById          String?
   verifiedBy            User?               @relation("UserVerifiedBy", fields: [verifiedById], references: [id])
   verifiedAt            DateTime?
-  verificationToken     String?
-  verificationTokenExpiry DateTime?
-
-  resetToken            String?
-  resetTokenExpiry      DateTime?
 
   lastActiveAt          DateTime            @default(now())
   isTest                Boolean             @default(false)
@@ -346,8 +341,6 @@ model User {
   @@index([createdAt(sort: Desc)])
   @@index([isTest])
   @@index([status])
-  @@index([verificationToken, verificationTokenExpiry])
-  @@index([resetToken, resetTokenExpiry])
 }
 
 model Skill {

@@ -30,7 +30,7 @@ const publicUserPrisma = async (userId, viewerId = null) => {
   const isOwner = viewerId != null && String(viewerId) === user.id;
   const visibility = privacy.profileVisibility || privacy.visibility || user.profileVisibility || 'public';
   if (!isOwner && visibility === 'private') throw new AppError('This profile is private.', 403);
-  const { password, verificationToken, verificationTokenExpiry, resetToken, resetTokenExpiry, ...rest } = user;
+  const { password, ...rest } = user;
   if (!isOwner && privacy.showEmail !== true) delete rest.email;
   if (!isOwner && privacy.showCollege === false) delete rest.college;
   if (!isOwner && privacy.showAvailability === false) {

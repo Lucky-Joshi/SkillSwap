@@ -63,7 +63,6 @@ Session 1───n Certificate (sessionId)
 | hoursLearned / hoursTaught | Number | |
 | learnedSkills | [String] | skills learned via sessions |
 | learningStreak / teachingStreak | Number | consecutive days |
-| verificationToken / resetToken / resetTokenExpiry | String / Date | `select:false` |
 | notificationPreferences | {email, push, sessionReminders} | subdocument |
 | privacy | Object | `{ profileVisibility, showEmail, showCollege, showContact, showAvailability, showPortfolioLinks }` |
 
@@ -260,7 +259,7 @@ Computed by `trustService.js` and stored on the User document.
 ## Notes
 
 - All models use `timestamps: true` (`createdAt`, `updatedAt`).
-- Passwords and verification/reset tokens are never returned by the API
+- Passwords are never returned by the API
   (`select:false` + removed by `userService.publicUser`).
 - The core seeder (`backend/scripts/seed.js`) upserts skills, badges, and institutions — no demo/test users.
 - Admin accounts are created via `backend/scripts/create-admin.js` (promotes existing users or creates new ones).

@@ -98,8 +98,6 @@ npm run build               # production bundle in dist/
   - `DATABASE_URL` → Supabase Postgres runtime connection string
   - `DIRECT_URL` → Supabase Postgres migration connection string
   - `JWT_SECRET` → unique random value, at least 32 characters
-  - `EMAIL_FROM` and `RESEND_API_KEY` → verified Resend sender and server-side API key
-  - `EMAIL_VERIFY_BASE_URL` → HTTPS frontend verification route
   - `AI_SERVICE_URL` → internal URL of the deployed AI service
   - `CLIENT_URL` → frontend URL (CORS + Socket.IO origin)
   - `UPLOAD_DIR` → persistent profile image directory
@@ -149,16 +147,12 @@ npm run build               # production bundle in dist/
 | `DATABASE_URL` | backend | none | Supabase Postgres runtime URL |
 | `DIRECT_URL` | backend | none | Supabase Postgres migration URL |
 | `JWT_SECRET` | backend | dev secret | **must** change in prod |
-| `EMAIL_FROM` | backend | none | Verified sender address |
-| `RESEND_API_KEY` | backend | none | Secret email provider key |
 | `JWT_EXPIRES_IN` | backend | `7d` | |
 | `AI_SERVICE_URL` | backend | `http://localhost:8000` | |
 | `AI_SERVICE_TIMEOUT` | backend | `4000` | ms |
 | `CLIENT_URL` | backend | `http://localhost:5173` | CORS + Socket.IO |
 | `CORS_ORIGINS` | backend | `CLIENT_URL` | comma-separated allowed origins |
 | `UPLOAD_DIR` | backend | `uploads` | |
-| `EMAIL_VERIFY_BASE_URL` | backend | `http://localhost:5173/verify-email` | |
-| `EMAIL_VERIFY_BASE_URL` | backend | localhost verification route | HTTPS in production |
 | `RESUME_DIR` | backend | OS temporary directory | Never serve this directory publicly |
 | `TRUST_PROXY` | backend | `false` | Set to `true` behind a trusted single proxy |
 | `LOG_LEVEL` | backend | `debug` | `info`/`warn`/`error` in prod |

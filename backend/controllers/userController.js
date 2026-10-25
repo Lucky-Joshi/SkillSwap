@@ -14,7 +14,7 @@ const qualificationToDb = (value) => enumKey(value);
 const yearToDb = (value) => value === 'Graduate' || value === 'graduate' ? 'graduate' : `year${value}`;
 const cleanUser = (user) => {
   if (!user) return null;
-  const { password, verificationToken, resetToken, resetTokenExpiry, ...safe } = user;
+  const { password, ...safe } = user;
   return { ...safe, _id: safe.id };
 };
 const exactSkill = (name) => ({

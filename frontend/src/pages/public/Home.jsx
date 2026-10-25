@@ -21,7 +21,7 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { n: '01', title: 'Create your profile', desc: 'Verify your college email and pick the skills you can teach and want to learn.' },
+  { n: '01', title: 'Create your profile', desc: 'Sign up with your college email and pick the skills you can teach and want to learn.' },
   { n: '02', title: 'AI finds your matches', desc: 'Our engine scores every student by compatibility — skill match, mutual interest, availability and more.' },
   { n: '03', title: 'Connect & chat', desc: 'Send a learning request, get accepted, and open a real-time conversation.' },
   { n: '04', title: 'Learn, teach, grow', desc: 'Schedule sessions, earn badges, climb the leaderboard and collect certificates.' },

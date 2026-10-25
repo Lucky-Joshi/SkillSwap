@@ -30,7 +30,7 @@ const FAQS = [
   },
   {
     q: 'How is my trust score calculated?',
-    a: 'Your trust score (0–100) is computed from: verified email (30 pts), complete academic details (10 pts), bio (10 pts), avatar (5 pts), linked profiles (5 pts), skills (15 pts), received reviews (10 pts), completed sessions (10 pts), accepted matches (5 pts), and earned badges (5 pts).',
+    a: 'Your trust score (0–100) is computed from staff verification, academic details, bio, avatar, linked profiles, skills, received reviews, completed sessions, accepted matches, and earned badges.',
   },
   {
     q: 'What happens after I complete a session?',

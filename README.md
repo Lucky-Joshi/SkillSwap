@@ -5,7 +5,7 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 SkillSwap is a full-stack, AI-powered peer learning and skill exchange platform for
-colleges. Students create verified profiles, list skills they know and want to learn,
+colleges. Students create profiles, list skills they know and want to learn,
 get AI-generated mentor/learner/peer recommendations, exchange learning requests, chat in
 real time, schedule sessions, and earn badges & certificates.
 
@@ -13,8 +13,8 @@ real time, schedule sessions, and earn badges & certificates.
 
 The backend uses Prisma 7 with Supabase Postgres. Copy `backend/.env.example` to
 `backend/.env`, then set the database URLs, a unique 32+ character `JWT_SECRET`,
-the deployed frontend origin, and Resend email credentials. Prisma connects directly
-to Postgres; the frontend never receives database credentials.
+and the deployed frontend origin. Prisma connects directly to Postgres; the frontend
+never receives database credentials. Signup does not require an email provider.
 
 ---
 
@@ -165,7 +165,7 @@ SkillSwap/
 ```bash
 cd backend
 npm install
-cp .env.example .env          # add Postgres URLs, JWT secret, and email credentials
+cp .env.example .env          # add Postgres URLs and JWT secret
 npm run prisma:generate
 npm run prisma:migrate:deploy # apply checked-in relational migrations
 npm run seed                  # seed core data (skills, badges, institutions)

@@ -24,7 +24,6 @@ SkillSwap ("we", "us", "our") is committed to protecting your privacy. This poli
 
 ## 4. Third-Party Services
 We may use third-party providers for:
-- Email delivery (verification codes, password resets, notifications).
 - Hosting and infrastructure (e.g., Railway/Render, Vercel/Netlify).
 - The AI service, which processes skills and goals for recommendations (no sale of data).
 

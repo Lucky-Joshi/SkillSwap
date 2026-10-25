@@ -34,9 +34,8 @@ Use Node.js 20.19+ (Node 22 recommended) or the included Docker image. Set:
 For a Render native Node service, set the root directory to `backend`, the build
 command to `npm ci && npm run prisma:generate`, and the start command to `npm start`.
 Configure the required production variables in the Render service environment;
-never copy local secrets into the repository. The API starts without email delivery
-configured, but registration, verification resend, and password reset return `503`
-until both `EMAIL_FROM` and `RESEND_API_KEY` are present.
+never copy local secrets into the repository. Signup and login work without email
+delivery. Email verification and email-based password reset are not included.
 
 | Variable | Purpose |
 |---|---|
@@ -45,9 +44,6 @@ until both `EMAIL_FROM` and `RESEND_API_KEY` are present.
 | `JWT_SECRET` | Unique random secret, at least 32 characters |
 | `CLIENT_URL` | HTTPS frontend origin |
 | `CORS_ORIGINS` | Comma-separated HTTPS browser origins |
-| `EMAIL_FROM` | Verified sender address |
-| `RESEND_API_KEY` | Server-side Resend API key |
-| `EMAIL_VERIFY_BASE_URL` | HTTPS frontend verification route |
 | `AI_SERVICE_URL` | Private AI service URL |
 | `UPLOAD_DIR` | Persistent public image upload directory |
 | `RESUME_DIR` | Private temporary resume staging directory |

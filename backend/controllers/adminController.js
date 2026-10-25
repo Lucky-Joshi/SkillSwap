@@ -12,7 +12,7 @@ const getClientIp = (req) => String(req.headers['x-forwarded-for'] || req.ip || 
 const enumKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 const safeUser = (user) => {
   if (!user) return user;
-  const { password, verificationToken, resetToken, resetTokenExpiry, ...safe } = user;
+  const { password, ...safe } = user;
   return { ...safe, _id: safe.id };
 };
 const parsePage = (query) => {

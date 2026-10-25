@@ -10,14 +10,14 @@
 
 - bcrypt password hashing, signed JWT authentication, database-backed account status
   checks, and role-based authorization
-- hashed verification and reset tokens with expiration
+- staff-reviewed profile verification
 - Prisma/Postgres queries, route validation, request limits, Helmet headers, and CORS
   origin allow-lists
 - private temporary resume staging and relationship checks for Socket.IO chat events
-- HTTPS-only production origins and startup validation for database, JWT, and email
+- HTTPS-only production origins and startup validation for database and JWT
   configuration
 
-Do not commit `.env` files, database URLs, JWT secrets, or email provider keys. Rotate
+Do not commit `.env` files, database URLs, or JWT secrets. Rotate
 credentials that have been exposed outside the secret store.
 
 ## Reporting Vulnerabilities

@@ -9,7 +9,7 @@ These Terms form a binding agreement between you and SkillSwap. By registering o
 
 ## 2. User Accounts and Responsibilities
 - You are responsible for maintaining the confidentiality of your login credentials.
-- You must provide a valid college email and verify your account.
+- You must provide a valid email address and accurate academic profile information.
 - You are responsible for all activity that occurs under your account.
 - You must notify us immediately of any unauthorized use.
 

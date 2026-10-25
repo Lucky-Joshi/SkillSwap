@@ -38,7 +38,7 @@ Admins log in and are redirected to a dedicated dashboard showing platform stati
 The frontend is a responsive web app built with React and Tailwind CSS, so it works in mobile browsers. While there is no native mobile app yet, the layout adapts to smaller screens.
 
 ### How do I reset my password?
-On the login screen, click **Forgot password**. Enter your registered email to receive a reset link, then follow the link to set a new password. You can also use the in-app flow with a verification code.
+Password reset is not available in this release. Keep your password in a password manager; contact the project owner if you lose access.
 
 ### What happens if the AI service is down?
 The backend is designed with a fallback so core functionality (auth, profiles, connections, chat, sessions) continues to work even if the AI service is unavailable. Recommendations and similarity scores may be limited or absent until the service recovers. Admins can monitor AI status from the admin portal.

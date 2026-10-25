@@ -4,7 +4,7 @@
 
 - Docker Engine 24+
 - Docker Compose v2+
-- Supabase Postgres credentials and Resend email credentials in `backend/.env`
+- Supabase Postgres credentials in `backend/.env`
 
 ## Start
 
@@ -35,5 +35,5 @@ docker compose down
 ```
 
 Production startup requires `NODE_ENV=production`, a 32+ character `JWT_SECRET`,
-HTTPS browser origins, `DATABASE_URL`, `DIRECT_URL`, `EMAIL_FROM`, and `RESEND_API_KEY`.
+HTTPS browser origins, `DATABASE_URL`, and `DIRECT_URL`.
 Keep secrets in the deployment secret manager and never add `.env` files to Git.

@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 const config = require('../config/env');
 
 const signToken = (userId) =>
@@ -9,6 +8,4 @@ const signToken = (userId) =>
 
 const verifyToken = (token) => jwt.verify(token, config.jwtSecret);
 
-const randomToken = () => crypto.randomBytes(32).toString('hex');
-
-module.exports = { signToken, verifyToken, randomToken };
+module.exports = { signToken, verifyToken };

@@ -21,10 +21,6 @@ Authorization: Bearer <JWT>
 | POST | `/auth/login` | `email, password` | Login, returns `{ token, user }` (includes `role` in JWT payload) |
 | POST | `/auth/logout` | — | Logout |
 | GET | `/auth/me` | — | Current user profile |
-| POST | `/auth/verify-email` | `email, code` | Verify email with 6-digit code |
-| POST | `/auth/resend-verification` | `email` | Resend verification code |
-| POST | `/auth/forgot-password` | `email` | Send reset link |
-| POST | `/auth/reset-password/:token` | `password` | Set new password |
 | PUT | `/auth/update-password` | `currentPassword, newPassword` | Change password |
 
 ---
