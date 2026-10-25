@@ -15,3 +15,10 @@ venv/
 .mypy_cache/
 models_cache/
 /generated/prisma
+
+# Local AI coding assistant skill installations
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
+backend/skills-lock.json
