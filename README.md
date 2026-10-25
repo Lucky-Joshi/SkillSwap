@@ -4,6 +4,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
+🌐 **Live app:** [skill-swap-nine-lac.vercel.app](https://skill-swap-nine-lac.vercel.app/)
+
 SkillSwap is a full-stack, AI-powered peer learning and skill exchange platform for
 colleges. Students create profiles, list skills they know and want to learn,
 get AI-generated mentor/learner/peer recommendations, exchange learning requests, chat in
