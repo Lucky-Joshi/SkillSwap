@@ -12,7 +12,9 @@ const { recordRequest } = require('./utils/metrics');
 const logger = require('./utils/logger');
 
 const app = express();
-if (process.env.TRUST_PROXY === 'true') app.set('trust proxy', 1);
+if (process.env.TRUST_PROXY === 'true' || process.env.RENDER === 'true') {
+  app.set('trust proxy', 1);
+}
 
 // Security headers
 app.use(helmet());

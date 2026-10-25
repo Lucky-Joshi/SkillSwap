@@ -36,6 +36,9 @@ command to `npm ci && npm run prisma:generate`, and the start command to `npm st
 Configure the required production variables in the Render service environment;
 never copy local secrets into the repository. Signup and login work without email
 delivery. Email verification and email-based password reset are not included.
+For the backend database URL, copy Supabase's **Session pooler** connection string
+into Render's `DATABASE_URL`; Render cannot reach Supabase's IPv6-only direct host.
+Render's forwarded client IP is trusted automatically for rate limiting.
 
 | Variable | Purpose |
 |---|---|
