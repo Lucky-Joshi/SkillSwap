@@ -24,7 +24,7 @@ waits for the AI service health check before starting the API.
 
 - Build in `frontend/` with `npm ci && npm run build`.
 - Publish `frontend/dist` as a static SPA.
-- Set `VITE_API_URL` to the API origin and `VITE_SOCKET_URL` to the Socket.IO origin.
+- Set `VITE_API_URL` to the backend origin (for example, `https://skillswap-backend.onrender.com`; `/api` is added by the client) and `VITE_SOCKET_URL` to the Socket.IO origin.
 - Configure SPA fallback routing at the static host.
 
 ### Backend
@@ -43,7 +43,7 @@ delivery. Email verification and email-based password reset are not included.
 | `DIRECT_URL` | Direct Postgres connection for migrations |
 | `JWT_SECRET` | Unique random secret, at least 32 characters |
 | `CLIENT_URL` | HTTPS frontend origin |
-| `CORS_ORIGINS` | Comma-separated HTTPS browser origins |
+| `CORS_ORIGINS` | Comma-separated HTTPS browser origins, including the exact Vercel site origin |
 | `AI_SERVICE_URL` | Private AI service URL |
 | `UPLOAD_DIR` | Persistent public image upload directory |
 | `RESUME_DIR` | Private temporary resume staging directory |

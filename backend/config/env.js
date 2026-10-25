@@ -9,7 +9,7 @@ const uploadDir = process.env.UPLOAD_DIR || 'uploads';
 const resumeDir = process.env.RESUME_DIR || `${require('os').tmpdir()}/skillswap-resumes`;
 const corsOrigins = (process.env.CORS_ORIGINS || process.env.CLIENT_URL || 'http://localhost:5173')
   .split(',')
-  .map((value) => value.trim())
+  .map((value) => value.trim().replace(/\/+$/, ''))
   .filter(Boolean);
 
 if (env === 'production') {
