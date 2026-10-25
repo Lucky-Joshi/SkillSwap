@@ -46,7 +46,7 @@ npm run dev                 # http://localhost:5000 (nodemon)
 ### Create admin account
 
 ```bash
-node scripts/create-admin.js --name "Admin User" --email admin@skillswap.io --password Admin@2005
+node scripts/create-admin.js --name "Your Name" --email you@example.com --password <strong-password>
 ```
 
 This script:
