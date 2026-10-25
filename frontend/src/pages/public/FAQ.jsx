@@ -38,7 +38,7 @@ const FAQS = [
   },
   {
     q: 'Is my data safe?',
-    a: 'SkillSwap uses JWT authentication, bcrypt password hashing, and MongoDB Atlas with TLS. Your password is never exposed in API responses. The platform follows security best practices including rate limiting, input validation, and CORS restrictions.',
+    a: 'SkillSwap uses JWT authentication, bcrypt password hashing, and Supabase Postgres over TLS. Your password is never exposed in API responses. The platform follows security best practices including rate limiting, input validation, and CORS restrictions.',
   },
 ];
 

@@ -1,141 +1,91 @@
-const Message = require('../models/Message');
-const User = require('../models/User');
+const prisma = require('../lib/prisma');
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const { paginate, paginateResults } = require('../utils/paginate');
-const { assertCanInteract, conversationKey, findRelationship } = require('../services/mentorshipService');
+const { assertCanInteract, conversationKey } = require('../services/mentorshipService');
 const { isUserOnline } = require('../socket');
 
-// @route  GET /api/messages/conversations?search=&unread=
-// @access private — only conversations with an active mentorship/peer relationship
+const personView = (user) => user ? { ...user, _id: user.id, year: ({ year1: '1', year2: '2', year3: '3', year4: '4', year5: '5', graduate: 'Graduate' })[user.year] || user.year } : null;
+const messageView = (message) => ({ ...message, _id: message.id, sender: message.senderId, receiver: message.receiverId });
+
 const getConversations = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
-  const { search, unread } = req.query;
-
-  // Accepted + active connections only. Chat is never global.
-  const relationships = await require('../models/Connection').find({
-    $or: [{ userA: userId }, { userB: userId }],
-    status: 'accepted',
-    active: true,
+  const userId = req.user.id;
+  const relationships = await prisma.connection.findMany({
+    where: { OR: [{ userAId: userId }, { userBId: userId }], status: 'accepted', active: true },
   });
+  const relationshipByOther = new Map();
+  for (const rel of relationships) relationshipByOther.set(rel.userAId === userId ? rel.userBId : rel.userAId, rel);
+  if (!relationshipByOther.size) return res.json({ success: true, conversations: [] });
 
-  const allowedIds = new Set();
-  const relationByOther = new Map();
-  for (const rel of relationships) {
-    const otherId = String(rel.userA) === String(userId) ? String(rel.userB) : String(rel.userA);
-    allowedIds.add(otherId);
-    relationByOther.set(otherId, rel);
+  const whereUsers = { id: { in: [...relationshipByOther.keys()] } };
+  if (typeof req.query.search === 'string' && req.query.search.trim()) {
+    whereUsers.name = { contains: req.query.search.trim(), mode: 'insensitive' };
   }
-  if (allowedIds.size === 0) return res.json({ success: true, conversations: [] });
-
-  // If searching by name, pre-filter allowed IDs to those matching the search
-  let filteredIds = allowedIds;
-  if (search && search.trim()) {
-    const matchingUsers = await User.find({
-      _id: { $in: [...allowedIds] },
-      name: { $regex: search.trim(), $options: 'i' },
-    }).select('_id');
-    filteredIds = new Set(matchingUsers.map((u) => String(u._id)));
-    if (filteredIds.size === 0) return res.json({ success: true, conversations: [] });
+  const matchingUsers = await prisma.user.findMany({ where: whereUsers, select: { id: true, name: true, avatar: true, department: true, year: true } });
+  const matchingIds = new Set(matchingUsers.map((user) => user.id));
+  if (!matchingIds.size) return res.json({ success: true, conversations: [] });
+  const messages = await prisma.message.findMany({
+    where: { OR: [{ senderId: userId }, { receiverId: userId }] },
+    orderBy: { createdAt: 'desc' }, take: 500,
+  });
+  const latest = new Map();
+  for (const message of messages) {
+    const otherId = message.senderId === userId ? message.receiverId : message.senderId;
+    if (!matchingIds.has(otherId)) continue;
+    const row = latest.get(otherId) || { lastMessage: message, unread: 0 };
+    if (!message.read && message.receiverId === userId) row.unread += 1;
+    latest.set(otherId, row);
   }
-
-  const messages = await Message.find({
-    $or: [{ sender: userId }, { receiver: userId }],
-  })
-    .sort({ createdAt: -1 })
-    .limit(500);
-
-  const map = new Map();
-  for (const m of messages) {
-    const otherId = String(m.sender) === String(userId) ? String(m.receiver) : String(m.sender);
-    if (!filteredIds.has(otherId)) continue;
-    if (!map.has(otherId)) {
-      map.set(otherId, { lastMessage: m, unread: !m.read && String(m.receiver) === String(userId) ? 1 : 0 });
-    } else {
-      const entry = map.get(otherId);
-      if (!m.read && String(m.receiver) === String(userId)) entry.unread += 1;
-    }
-  }
-
-  const conversations = [];
-  for (const [otherId, { lastMessage, unread }] of map) {
-    const other = await User.findById(otherId).select('name email avatar department year');
-    const rel = relationByOther.get(otherId);
-    conversations.push({
+  const userById = new Map(matchingUsers.map((user) => [user.id, personView(user)]));
+  let conversations = [...latest.entries()].map(([otherId, { lastMessage, unread }]) => {
+    const rel = relationshipByOther.get(otherId);
+    return {
       userId: otherId,
-      user: other,
+      user: userById.get(otherId),
       online: isUserOnline(otherId),
       lastMessage: lastMessage.message,
       lastMessageAt: lastMessage.createdAt,
-      lastMessageByMe: String(lastMessage.sender) === String(userId),
+      lastMessageByMe: lastMessage.senderId === userId,
       unread,
-      relationship: {
-        id: rel._id,
-        type: rel.type,
-        role: rel.type === 'peer' ? 'peer' : (String(rel.userA) === String(userId) ? 'mentor' : 'learner'),
-        acceptedAt: rel.acceptedAt,
-      },
-    });
-  }
-
-  // If unread filter, exclude conversations with no unread messages
-  let result = conversations;
-  if (unread === 'true') result = conversations.filter((c) => c.unread > 0);
-
-  result.sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
-  res.json({ success: true, conversations: result });
-});
-
-// @route  GET /api/messages/:userId?page=&limit=
-// @access private — only with an active relationship
-const getMessages = asyncHandler(async (req, res, next) => {
-  const { page, limit, skip } = paginate(req);
-
-  const otherId = req.params.userId;
-  const other = await User.findById(otherId);
-  if (!other) throw new AppError('User not found.', 404);
-
-  await assertCanInteract(req.user._id, otherId);
-
-  const filter = {
-    $or: [
-      { sender: req.user._id, receiver: otherId },
-      { sender: otherId, receiver: req.user._id },
-    ],
-  };
-
-  // mark inbound as read (before querying so responses are accurate)
-  await Message.updateMany(
-    { sender: otherId, receiver: req.user._id, read: false },
-    { read: true, readAt: new Date() }
-  );
-
-  const [messages, total] = await Promise.all([
-    Message.find(filter).sort({ createdAt: 1 }).skip(skip).limit(limit),
-    Message.countDocuments(filter),
-  ]);
-
-  res.json({ success: true, ...paginateResults(messages, total, page, limit) });
-});
-
-// @route  POST /api/messages { receiver, message }
-// @access private — only with an active relationship
-const sendMessage = asyncHandler(async (req, res, next) => {
-  const { receiver, message, matchId } = req.body;
-  const target = await User.findById(receiver);
-  if (!target) throw new AppError('User not found.', 404);
-
-  const relationship = await assertCanInteract(req.user._id, receiver);
-
-  const doc = await Message.create({
-    sender: req.user._id,
-    receiver,
-    conversationId: conversationKey(req.user._id, receiver),
-    message,
-    matchId: relationship._id,
+      relationship: { id: rel.id, type: rel.type, role: rel.type === 'peer' ? 'peer' : (rel.userAId === userId ? 'mentor' : 'learner'), acceptedAt: rel.acceptedAt },
+    };
   });
+  if (req.query.unread === 'true') conversations = conversations.filter((row) => row.unread > 0);
+  conversations.sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
+  res.json({ success: true, conversations });
+});
 
-  res.status(201).json({ success: true, message: doc });
+const getMessages = asyncHandler(async (req, res) => {
+  const { page, limit, skip } = paginate(req);
+  const otherId = req.params.userId;
+  const other = await prisma.user.findUnique({ where: { id: otherId }, select: { id: true } });
+  if (!other) throw new AppError('User not found.', 404);
+  await assertCanInteract(req.user.id, otherId);
+  const where = { OR: [{ senderId: req.user.id, receiverId: otherId }, { senderId: otherId, receiverId: req.user.id }] };
+  await prisma.message.updateMany({
+    where: { senderId: otherId, receiverId: req.user.id, read: false },
+    data: { read: true, readAt: new Date() },
+  });
+  const [rows, total] = await Promise.all([
+    prisma.message.findMany({ where, orderBy: { createdAt: 'asc' }, skip, take: limit }),
+    prisma.message.count({ where }),
+  ]);
+  res.json({ success: true, ...paginateResults(rows.map(messageView), total, page, limit) });
+});
+
+const sendMessage = asyncHandler(async (req, res) => {
+  const { receiver, message } = req.body;
+  const target = await prisma.user.findUnique({ where: { id: receiver }, select: { id: true } });
+  if (!target) throw new AppError('User not found.', 404);
+  const relationship = await assertCanInteract(req.user.id, receiver);
+  const row = await prisma.message.create({
+    data: {
+      senderId: req.user.id, receiverId: receiver,
+      conversationId: conversationKey(req.user.id, receiver), message,
+      matchId: relationship.id,
+    },
+  });
+  res.status(201).json({ success: true, message: messageView(row) });
 });
 
 module.exports = { getConversations, getMessages, sendMessage };

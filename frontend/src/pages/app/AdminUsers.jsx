@@ -23,7 +23,7 @@ import { formatDate } from '../../utils/helpers';
 
 const PAGE_SIZE = 20;
 
-const ROLES = ['all', 'student', 'faculty', 'alumni', 'admin'];
+const ROLES = ['all', 'student', 'faculty', 'alumni', 'admin', 'super_admin'];
 const STATUSES = ['all', 'active', 'verified', 'suspended', 'deleted', 'banned'];
 const SORT_OPTIONS = [
   { value: '-createdAt', label: 'Newest' },
@@ -233,7 +233,7 @@ export default function AdminUsers() {
                         <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_STYLES[u.status] || STATUS_STYLES.active}`}>
                           {u.status || 'active'}
                         </span>
-                        {u.role === 'admin' && (
+                        {['admin', 'super_admin'].includes(u.role) && (
                           <span className="ml-1 inline-flex items-center gap-0.5 rounded-full bg-purple-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-purple-600 dark:text-purple-400">
                             <FiShield className="h-2.5 w-2.5" /> admin
                           </span>
@@ -254,13 +254,13 @@ export default function AdminUsers() {
                             </Button>
                           ) : (
                             <>
-                              <Button variant="ghost" className="!px-1.5 !py-1 text-xs text-amber-500" onClick={() => { setSuspendModal(u); setSuspendReason(''); setSuspendDuration(''); setSuspendNotes(''); }} title="Suspend" disabled={u.role === 'admin'}>
+                              <Button variant="ghost" className="!px-1.5 !py-1 text-xs text-amber-500" onClick={() => { setSuspendModal(u); setSuspendReason(''); setSuspendDuration(''); setSuspendNotes(''); }} title="Suspend" disabled={['admin', 'super_admin'].includes(u.role)}>
                                 <FiClock className="h-3.5 w-3.5" />
                               </Button>
-                              <Button variant="ghost" className="!px-1.5 !py-1 text-xs text-red-500" onClick={() => { setDeleteModal(u); setDeleteType('soft'); setDeleteReason(''); setDeleteConfirm(''); }} title="Delete" disabled={u.role === 'admin'}>
+                              <Button variant="ghost" className="!px-1.5 !py-1 text-xs text-red-500" onClick={() => { setDeleteModal(u); setDeleteType('soft'); setDeleteReason(''); setDeleteConfirm(''); }} title="Delete" disabled={['admin', 'super_admin'].includes(u.role)}>
                                 <FiTrash2 className="h-3.5 w-3.5" />
                               </Button>
-                              <Button variant="ghost" className="!px-1.5 !py-1 text-xs text-red-700" onClick={() => { setBanModal(u); setBanReason(''); }} title="Ban" disabled={u.role === 'admin'}>
+                              <Button variant="ghost" className="!px-1.5 !py-1 text-xs text-red-700" onClick={() => { setBanModal(u); setBanReason(''); }} title="Ban" disabled={['admin', 'super_admin'].includes(u.role)}>
                                 <FiSlash className="h-3.5 w-3.5" />
                               </Button>
                             </>

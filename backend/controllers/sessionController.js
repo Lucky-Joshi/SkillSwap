@@ -1,448 +1,206 @@
-const Session = require('../models/Session');
-const Connection = require('../models/Connection');
-const User = require('../models/User');
-const Review = require('../models/Review');
+const prisma = require('../lib/prisma');
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const { notify } = require('../services/notificationService');
 const { evaluateBadges } = require('../services/badgeService');
 const { queueTrustRefresh } = require('../services/trustService');
 const { paginate, paginateResults } = require('../utils/paginate');
-const { assertCanInteract, findRelationship } = require('../services/mentorshipService');
-const {
-  effectiveStart,
-  deriveStatus,
-  sessionEndLocal,
-  applySessionCompletion,
-  relationshipFor,
-  startOfDay,
-  endOfDay,
-} = require('../services/sessionService');
+const { assertCanInteract } = require('../services/mentorshipService');
+const { effectiveStart, deriveStatus, sessionEndLocal, applySessionCompletion } = require('../services/sessionService');
 
-const sessionLabel = async (session, viewerId) => {
-  const [mentor, learner] = await Promise.all([
-    User.findById(session.mentorId),
-    User.findById(session.learnerId),
-  ]);
-  const isMentor = String(session.mentorId) === String(viewerId);
-  const start = effectiveStart(session);
-  return {
-    ...session.toObject(),
-    role: isMentor ? 'mentor' : 'learner',
-    status: deriveStatus(session),
-    storedStatus: session.status,
-    start: start.toISOString(),
-    end: sessionEndLocal(session).toISOString(),
-    mentor: mentor ? { id: mentor._id, name: mentor.name, avatar: mentor.avatar, rating: mentor.rating } : null,
-    learner: learner ? { id: learner._id, name: learner.name, avatar: learner.avatar, rating: learner.rating } : null,
-  };
+const currentUserId = (user) => String(user.id || user._id);
+const participant = (session, id) => {
+  if (session.mentorId !== String(id) && session.learnerId !== String(id)) throw new AppError('Not your session.', 403);
 };
-
-// Validate meeting details for the chosen mode.
-const validateMeeting = (mode, { meetingType, meetingLink, locationType, location }) => {
+const sessionLabel = (session, viewerId) => ({
+  ...session,
+  _id: session.id,
+  role: session.mentorId === String(viewerId) ? 'mentor' : 'learner',
+  storedStatus: session.status,
+  status: deriveStatus(session),
+  start: effectiveStart(session).toISOString(),
+  end: sessionEndLocal(session).toISOString(),
+  mentor: session.mentor ? { id: session.mentor.id, _id: session.mentor.id, name: session.mentor.name, avatar: session.mentor.avatar, rating: session.mentor.rating } : null,
+  learner: session.learner ? { id: session.learner.id, _id: session.learner.id, name: session.learner.name, avatar: session.learner.avatar, rating: session.learner.rating } : null,
+});
+const sessionInclude = { mentor: { select: { id: true, name: true, avatar: true, rating: true } }, learner: { select: { id: true, name: true, avatar: true, rating: true } } };
+const validateMeeting = (mode, { meetingType, meetingLink, locationType }) => {
   if (mode === 'online') {
-    if (!meetingType || !['googleMeet', 'zoom', 'teams', 'custom'].includes(meetingType)) {
-      throw new AppError('Please choose an online meeting platform.', 400);
-    }
-    if (!meetingLink || !/^https?:\/\/.+/i.test(meetingLink)) {
-      throw new AppError('A valid meeting link (starting with http) is required for online sessions.', 400);
-    }
-  } else {
-    if (!locationType || !['campus', 'classroom', 'library', 'lab', 'custom'].includes(locationType)) {
-      throw new AppError('Please choose an offline location type.', 400);
-    }
+    if (!['googleMeet', 'zoom', 'teams', 'custom'].includes(meetingType)) throw new AppError('Please choose an online meeting platform.', 400);
+    if (!/^https?:\/\/.+/i.test(meetingLink || '')) throw new AppError('A valid meeting link (starting with http) is required for online sessions.', 400);
+  } else if (!['campus', 'classroom', 'library', 'lab', 'custom'].includes(locationType)) {
+    throw new AppError('Please choose an offline location type.', 400);
   }
 };
 
-// @route  POST /api/session
-// @access private — requires an accepted relationship
-const createSession = asyncHandler(async (req, res, next) => {
-  const {
-    otherUserId,
-    topic,
-    description = '',
-    date,
-    startTime = '10:00',
-    duration = 60,
-    meetingMode = 'online',
-    meetingType,
-    meetingLink,
-    locationType,
-    location,
-    notes = '',
-  } = req.body;
-
-  const relationship = await assertCanInteract(req.user._id, otherUserId);
-  validateMeeting(meetingMode, { meetingType, meetingLink, locationType, location });
-
-  const isMentor = relationship.type === 'peer'
-    ? String(relationship.userA) === String(req.user._id)
-    : String(relationship.userA) === String(req.user._id);
-  const session = await Session.create({
-    mentorId: isMentor ? req.user._id : otherUserId,
-    learnerId: isMentor ? otherUserId : req.user._id,
-    matchId: relationship._id,
-    topic,
-    description,
-    notes,
-    date: new Date(date),
-    startTime,
-    duration,
-    meetingMode,
-    meetingType: meetingMode === 'online' ? meetingType : undefined,
-    meetingLink: meetingMode === 'online' ? meetingLink : '',
-    link: meetingMode === 'online' ? meetingLink : '',
-    locationType: meetingMode === 'offline' ? locationType : undefined,
-    location: meetingMode === 'offline' ? (location || '') : '',
+const createSession = asyncHandler(async (req, res) => {
+  const { otherUserId, topic, description = '', date, startTime = '10:00', duration = 60, meetingMode = 'online', meetingType, meetingLink, locationType, location, notes = '' } = req.body;
+  const actorId = currentUserId(req.user);
+  const relationship = await assertCanInteract(actorId, otherUserId);
+  validateMeeting(meetingMode, { meetingType, meetingLink, locationType });
+  const actorIsA = relationship.userAId === actorId;
+  const session = await prisma.session.create({
+    data: {
+      mentorId: actorIsA ? actorId : otherUserId,
+      learnerId: actorIsA ? otherUserId : actorId,
+      matchId: relationship.id,
+      topic, description, notes, date: new Date(date), startTime, duration, meetingMode,
+      meetingType: meetingMode === 'online' ? meetingType : 'googleMeet',
+      meetingLink: meetingMode === 'online' ? meetingLink : '',
+      link: meetingMode === 'online' ? meetingLink : '',
+      locationType: meetingMode === 'offline' ? locationType : 'campus',
+      location: meetingMode === 'offline' ? (location || '') : '',
+    }, include: sessionInclude,
   });
-
-  await notify({
-    userId: otherUserId,
-    type: 'session',
-    title: 'Session scheduled ⏳',
-    message: `${req.user.name} scheduled "${topic}" for ${new Date(session.date).toLocaleDateString()} at ${startTime}. Please confirm.`,
-    data: { sessionId: session._id },
-  });
-
-  res.status(201).json({ success: true, session: await sessionLabel(session, req.user._id) });
+  await notify({ userId: otherUserId, type: 'session_booked', title: 'Session scheduled ⏳', message: `${req.user.name} scheduled "${topic}" for ${new Date(date).toLocaleDateString()} at ${startTime}. Please confirm.`, data: { sessionId: session.id } });
+  res.status(201).json({ success: true, session: sessionLabel(session, actorId) });
 });
 
-// @route  GET /api/session?status=&meetingMode=&role=&search=&dateFrom=&dateTo=&page=
-// @access private
 const getSessions = asyncHandler(async (req, res) => {
   const { page, limit, skip } = paginate(req);
-  const { status, meetingMode, role, search, dateFrom, dateTo } = req.query;
-  const filter = { $or: [{ mentorId: req.user._id }, { learnerId: req.user._id }] };
-
-  if (status && ['pending', 'confirmed', 'completed', 'cancelled'].includes(status)) {
-    filter.status = status;
-  }
-  if (meetingMode && ['online', 'offline'].includes(meetingMode)) {
-    filter.meetingMode = meetingMode;
-  }
-  if (role === 'mentor') {
-    filter.mentorId = req.user._id;
-    delete filter.$or;
-  } else if (role === 'learner') {
-    filter.learnerId = req.user._id;
-    delete filter.$or;
-  }
-  if (search && search.trim()) {
-    filter.topic = { $regex: search.trim(), $options: 'i' };
-  }
-  if (dateFrom || dateTo) {
-    filter.date = {};
-    if (dateFrom) filter.date.$gte = new Date(dateFrom);
-    if (dateTo) filter.date.$lte = new Date(dateTo);
-  }
-
-  let sort = { date: -1 };
-  if (req.query.sort === 'date_asc') sort = { date: 1 };
-
+  const actorId = currentUserId(req.user);
+  const where = { OR: [{ mentorId: actorId }, { learnerId: actorId }] };
+  if (['pending', 'confirmed', 'completed', 'cancelled'].includes(req.query.status)) where.status = req.query.status;
+  if (['online', 'offline'].includes(req.query.meetingMode)) where.meetingMode = req.query.meetingMode;
+  if (req.query.role === 'mentor') { delete where.OR; where.mentorId = actorId; }
+  if (req.query.role === 'learner') { delete where.OR; where.learnerId = actorId; }
+  if (req.query.search) where.topic = { contains: String(req.query.search).trim().slice(0, 100), mode: 'insensitive' };
+  if (req.query.dateFrom || req.query.dateTo) where.date = { ...(req.query.dateFrom ? { gte: new Date(req.query.dateFrom) } : {}), ...(req.query.dateTo ? { lte: new Date(req.query.dateTo) } : {}) };
   const [sessions, total] = await Promise.all([
-    Session.find(filter).sort(sort).skip(skip).limit(limit),
-    Session.countDocuments(filter),
+    prisma.session.findMany({ where, include: sessionInclude, orderBy: { date: req.query.sort === 'date_asc' ? 'asc' : 'desc' }, skip, take: limit }),
+    prisma.session.count({ where }),
   ]);
-
-  const labeled = [];
-  for (const s of sessions) labeled.push(await sessionLabel(s, req.user._id));
-  res.json({ success: true, ...paginateResults(labeled, total, page, limit) });
+  res.json({ success: true, ...paginateResults(sessions.map((session) => sessionLabel(session, actorId)), total, page, limit) });
 });
 
-// @route  GET /api/session/dashboard
-// @access private — grouped session dashboard + progress
 const getSessionDashboard = asyncHandler(async (req, res) => {
-  const sessions = await Session.find({
-    $or: [{ mentorId: req.user._id }, { learnerId: req.user._id }],
-  }).sort({ date: 1 });
-
-  const labeled = [];
-  for (const s of sessions) labeled.push(await sessionLabel(s, req.user._id));
-
+  const actorId = currentUserId(req.user);
+  const sessions = await prisma.session.findMany({ where: { OR: [{ mentorId: actorId }, { learnerId: actorId }] }, include: sessionInclude, orderBy: { date: 'asc' } });
+  const labeled = sessions.map((session) => sessionLabel(session, actorId));
   const now = new Date();
-  const upcoming = labeled.filter((s) => s.storedStatus === 'confirmed' && new Date(s.start) > now);
-  const pending = labeled.filter((s) => s.storedStatus === 'pending');
-  const inProgress = labeled.filter((s) => s.storedStatus === 'confirmed' && s.status === 'in_progress');
-  const completed = labeled.filter((s) => s.storedStatus === 'completed');
-  const cancelled = labeled.filter((s) => s.storedStatus === 'cancelled');
+  const upcoming = labeled.filter((session) => session.storedStatus === 'confirmed' && new Date(session.start) > now);
+  const pending = labeled.filter((session) => session.storedStatus === 'pending');
+  const inProgress = labeled.filter((session) => session.storedStatus === 'confirmed' && session.status === 'in_progress');
+  const completed = labeled.filter((session) => session.storedStatus === 'completed');
+  const cancelled = labeled.filter((session) => session.storedStatus === 'cancelled');
   const history = [...completed, ...cancelled].sort((a, b) => new Date(b.start) - new Date(a.start));
-
   upcoming.sort((a, b) => new Date(a.start) - new Date(b.start));
-  const nextMeeting = upcoming[0] || null;
-
-  res.json({
-    success: true,
-    dashboard: {
-      upcoming,
-      pending,
-      inProgress,
-      completed,
-      cancelled,
-      history,
-      nextMeeting,
-    },
-    stats: {
-      totalSessions: labeled.length,
-      completedCount: completed.length,
-      upcomingCount: upcoming.length,
-      pendingCount: pending.length,
-      cancelledCount: cancelled.length,
-      sessionsCompleted: req.user.sessionsCompleted || 0,
-      hoursLearned: req.user.hoursLearned || 0,
-      hoursTaught: req.user.hoursTaught || 0,
-      learningStreak: req.user.learningStreak || 0,
-      teachingStreak: req.user.teachingStreak || 0,
-      learnedSkills: req.user.learnedSkills || [],
-    },
-  });
+  res.json({ success: true, dashboard: { upcoming, pending, inProgress, completed, cancelled, history, nextMeeting: upcoming[0] || null }, stats: {
+    totalSessions: labeled.length, completedCount: completed.length, upcomingCount: upcoming.length, pendingCount: pending.length, cancelledCount: cancelled.length,
+    sessionsCompleted: req.user.sessionsCompleted || 0, hoursLearned: req.user.hoursLearned || 0, hoursTaught: req.user.hoursTaught || 0,
+    learningStreak: req.user.learningStreak || 0, teachingStreak: req.user.teachingStreak || 0, learnedSkills: req.user.learnedSkills || [],
+  } });
 });
 
-// @route  GET /api/session/calendar?month=YYYY-MM  (or ?from=&to=)
-// @access private
 const getSessionCalendar = asyncHandler(async (req, res) => {
   const now = new Date();
-  let from;
-  let to;
+  let from, to;
   if (req.query.month) {
-    const [y, m] = String(req.query.month).split('-').map(Number);
-    from = new Date(y, m - 1, 1);
-    to = new Date(y, m, 0, 23, 59, 59, 999);
+    const [year, month] = String(req.query.month).split('-').map(Number);
+    from = new Date(year, month - 1, 1);
+    to = new Date(year, month, 0, 23, 59, 59, 999);
   } else {
     from = req.query.from ? new Date(req.query.from) : new Date(now.getFullYear(), now.getMonth(), 1);
     to = req.query.to ? new Date(req.query.to) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
   }
-
-  const sessions = await Session.find({
-    $or: [{ mentorId: req.user._id }, { learnerId: req.user._id }],
-    date: { $gte: from, $lte: to },
-  }).sort({ date: 1 });
-
-  const labeled = [];
-  for (const s of sessions) labeled.push(await sessionLabel(s, req.user._id));
-
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) throw new AppError('Invalid calendar date range.', 400);
+  const actorId = currentUserId(req.user);
+  const sessions = await prisma.session.findMany({ where: { OR: [{ mentorId: actorId }, { learnerId: actorId }], date: { gte: from, lte: to } }, include: sessionInclude, orderBy: { date: 'asc' } });
   const byDay = new Map();
-  for (const s of labeled) {
-    const day = new Date(s.date).toISOString().slice(0, 10);
+  for (const session of sessions.map((item) => sessionLabel(item, actorId))) {
+    const day = new Date(session.date).toISOString().slice(0, 10);
     if (!byDay.has(day)) byDay.set(day, []);
-    byDay.get(day).push(s);
+    byDay.get(day).push(session);
   }
-  const events = [...byDay.entries()]
-    .map(([date, sessionsOnDay]) => ({ date, sessions: sessionsOnDay }))
-    .sort((a, b) => (a.date < b.date ? -1 : 1));
-
-  res.json({ success: true, events });
+  res.json({ success: true, events: [...byDay].map(([date, sessionsOnDay]) => ({ date, sessions: sessionsOnDay })) });
 });
 
-// @route  PUT /api/session/:id  (edit fields while pending/confirmed)
-// @access private
-const updateSession = asyncHandler(async (req, res, next) => {
-  const session = await Session.findById(req.params.id);
+const getParticipantSession = async (id, actorId) => {
+  const session = await prisma.session.findUnique({ where: { id }, include: sessionInclude });
   if (!session) throw new AppError('Session not found.', 404);
-  assertParticipant(session, req.user._id);
-  if (session.status !== 'pending' && session.status !== 'confirmed') {
-    throw new AppError('Only pending or confirmed sessions can be edited.', 400);
-  }
+  participant(session, actorId);
+  return session;
+};
 
-  const allowed = [
-    'topic', 'description', 'date', 'startTime', 'duration',
-    'meetingMode', 'meetingType', 'meetingLink', 'locationType', 'location', 'notes',
-  ];
-  const updates = {};
-  allowed.forEach((k) => {
-    if (req.body[k] !== undefined) updates[k] = req.body[k];
-  });
-
-  const mode = updates.meetingMode || session.meetingMode;
-  validateMeeting(mode, { ...session.toObject(), ...updates });
-
-  if (updates.meetingMode === 'online') {
-    updates.locationType = undefined;
-    updates.location = '';
-  } else if (updates.meetingMode === 'offline') {
-    updates.meetingType = undefined;
-    updates.meetingLink = '';
-    updates.link = '';
-  }
-  if (updates.meetingLink !== undefined) updates.link = updates.meetingLink;
-
-  Object.assign(session, updates);
-  await session.save();
-
-  const otherId = String(session.mentorId) === String(req.user._id) ? session.learnerId : session.mentorId;
-  await notify({
-    userId: otherId,
-    type: 'session',
-    title: 'Session updated',
-    message: `"${session.topic}" was updated.`,
-    data: { sessionId: session._id },
-  });
-
-  res.json({ success: true, session: await sessionLabel(session, req.user._id) });
+const updateSession = asyncHandler(async (req, res) => {
+  const actorId = currentUserId(req.user);
+  const session = await getParticipantSession(req.params.id, actorId);
+  if (!['pending', 'confirmed'].includes(session.status)) throw new AppError('Only pending or confirmed sessions can be edited.', 400);
+  const fields = ['topic', 'description', 'date', 'startTime', 'duration', 'meetingMode', 'meetingType', 'meetingLink', 'locationType', 'location', 'notes'];
+  const data = {};
+  for (const field of fields) if (req.body[field] !== undefined) data[field] = req.body[field];
+  const mode = data.meetingMode || session.meetingMode;
+  const meeting = { ...session, ...data };
+  validateMeeting(mode, meeting);
+  if (data.date) data.date = new Date(data.date);
+  if (mode === 'online') { data.locationType = 'campus'; data.location = ''; }
+  else { data.meetingType = 'googleMeet'; data.meetingLink = ''; data.link = ''; }
+  if (data.meetingLink !== undefined) data.link = data.meetingLink;
+  const result = await prisma.session.updateMany({ where: { id: session.id, status: session.status }, data });
+  if (!result.count) throw new AppError('Session changed before this update could be saved. Refresh and try again.', 409);
+  const updated = await prisma.session.findUnique({ where: { id: session.id }, include: sessionInclude });
+  const otherId = session.mentorId === actorId ? session.learnerId : session.mentorId;
+  await notify({ userId: otherId, type: 'system', title: 'Session updated', message: `"${updated.topic}" was updated.`, data: { sessionId: session.id } });
+  res.json({ success: true, session: sessionLabel(updated, actorId) });
 });
 
-// @route  POST /api/session/:id/confirm
-// @access private
-const confirmSession = asyncHandler(async (req, res, next) => {
-  const session = await Session.findById(req.params.id);
-  if (!session) throw new AppError('Session not found.', 404);
-  assertParticipant(session, req.user._id);
+const confirmSession = asyncHandler(async (req, res) => {
+  const actorId = currentUserId(req.user);
+  const session = await getParticipantSession(req.params.id, actorId);
   if (session.status !== 'pending') throw new AppError('This session is already responded to.', 400);
-
-  session.status = 'confirmed';
-  session.confirmedAt = new Date();
-  await session.save();
-
-  const otherId = String(session.mentorId) === String(req.user._id) ? session.learnerId : session.mentorId;
-  await notify({
-    userId: otherId,
-    type: 'session',
-    title: 'Session confirmed ✅',
-    message: `${req.user.name} confirmed "${session.topic}". Your chat is open.`,
-    data: { sessionId: session._id },
-  });
-
-  // Also notify the confirmer
-  await notify({
-    userId: req.user._id,
-    type: 'session',
-    title: 'Session confirmed ✅',
-    message: `You confirmed "${session.topic}" with ${otherId === session.mentorId ? 'your mentor' : 'your learner'}.`,
-    data: { sessionId: session._id },
-  });
-
-  res.json({ success: true, session: await sessionLabel(session, req.user._id) });
+  const result = await prisma.session.updateMany({ where: { id: session.id, status: 'pending' }, data: { status: 'confirmed', confirmedAt: new Date() } });
+  if (!result.count) throw new AppError('Session changed before this update could be saved.', 409);
+  const updated = await prisma.session.findUnique({ where: { id: session.id }, include: sessionInclude });
+  const otherId = session.mentorId === actorId ? session.learnerId : session.mentorId;
+  await notify({ userId: otherId, type: 'session_confirmed', title: 'Session confirmed ✅', message: `${req.user.name} confirmed "${session.topic}". Your chat is open.`, data: { sessionId: session.id } });
+  await notify({ userId: actorId, type: 'session_confirmed', title: 'Session confirmed ✅', message: `You confirmed "${session.topic}".`, data: { sessionId: session.id } });
+  res.json({ success: true, session: sessionLabel(updated, actorId) });
 });
 
-// @route  POST /api/session/:id/cancel
-// @access private
-const cancelSession = asyncHandler(async (req, res, next) => {
-  const session = await Session.findById(req.params.id);
-  if (!session) throw new AppError('Session not found.', 404);
-  assertParticipant(session, req.user._id);
+const cancelSession = asyncHandler(async (req, res) => {
+  const actorId = currentUserId(req.user);
+  const session = await getParticipantSession(req.params.id, actorId);
   if (session.status === 'completed') throw new AppError('Completed sessions cannot be cancelled.', 400);
   if (session.status === 'cancelled') throw new AppError('This session is already cancelled.', 400);
-
-  session.status = 'cancelled';
-  session.cancelledAt = new Date();
-  session.cancelledBy = req.user._id;
-  await session.save();
-
-  const otherId = String(session.mentorId) === String(req.user._id) ? session.learnerId : session.mentorId;
-  await notify({
-    userId: otherId,
-    type: 'session',
-    title: 'Session cancelled',
-    message: `${req.user.name} cancelled "${session.topic}".`,
-    data: { sessionId: session._id },
-  });
-
-  res.json({ success: true, session: await sessionLabel(session, req.user._id) });
+  const result = await prisma.session.updateMany({ where: { id: session.id, status: session.status }, data: { status: 'cancelled', cancelledAt: new Date(), cancelledById: actorId } });
+  if (!result.count) throw new AppError('Session changed before this update could be saved.', 409);
+  const updated = await prisma.session.findUnique({ where: { id: session.id }, include: sessionInclude });
+  const otherId = session.mentorId === actorId ? session.learnerId : session.mentorId;
+  await notify({ userId: otherId, type: 'session_cancelled', title: 'Session cancelled', message: `${req.user.name} cancelled "${session.topic}".`, data: { sessionId: session.id } });
+  res.json({ success: true, session: sessionLabel(updated, actorId) });
 });
 
-// @route  POST /api/session/:id/complete  { rating?, feedback?, recommendAnother? }
-// @access private
-const completeSession = asyncHandler(async (req, res, next) => {
-  const session = await Session.findById(req.params.id);
-  if (!session) throw new AppError('Session not found.', 404);
-  assertParticipant(session, req.user._id);
+const completeSession = asyncHandler(async (req, res) => {
+  const actorId = currentUserId(req.user);
+  const session = await getParticipantSession(req.params.id, actorId);
   if (session.status !== 'confirmed') throw new AppError('Only confirmed sessions can be completed.', 400);
-
   const { rating, feedback = '', recommendAnother = false } = req.body;
-  const isLearner = String(session.learnerId) === String(req.user._id);
-
-  session.status = 'completed';
-  session.completedAt = new Date();
-  session.rating = rating !== undefined ? rating : session.rating;
-  session.feedback = feedback || session.feedback;
-  session.recommendAnother = recommendAnother !== undefined ? recommendAnother : session.recommendAnother;
-  await session.save();
-
-  const mentor = await User.findById(session.mentorId);
-  const learner = await User.findById(session.learnerId);
-
-  // Create a review when the learner rates the session.
-  if (isLearner && rating && mentor) {
-    const review = await Review.create({
-      mentor: mentor._id,
-      learner: req.user._id,
-      rating,
-      feedback: feedback || '',
-      sessionId: session._id,
-    });
-    const agg = await Review.aggregate([
-      { $match: { mentor: mentor._id } },
-      { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
-    ]);
-    const stats = agg[0] || { avg: rating, count: 1 };
-    await User.findByIdAndUpdate(mentor._id, {
-      rating: Math.round(stats.avg * 10) / 10,
-      reviewCount: stats.count,
-    });
-  }
-
-  // Progress + badges + trust for both participants.
-  if (learner) await applySessionCompletion(learner, session);
-  if (mentor) await applySessionCompletion(mentor, session);
-  await evaluateBadges(session.mentorId);
-  await evaluateBadges(session.learnerId);
-  queueTrustRefresh(session.mentorId);
-  queueTrustRefresh(session.learnerId);
-
-  // Generate AI next-steps suggestion
+  const isLearner = session.learnerId === actorId;
+  const completedAt = new Date();
+  const updated = await prisma.$transaction(async (tx) => {
+    const changed = await tx.session.updateMany({ where: { id: session.id, status: 'confirmed' }, data: { status: 'completed', completedAt, ...(rating !== undefined ? { rating } : {}), feedback: feedback || session.feedback, recommendAnother } });
+    if (!changed.count) throw new AppError('Session changed before this update could be saved.', 409);
+    if (isLearner && rating) {
+      await tx.review.upsert({ where: { mentorId_learnerId_sessionId: { mentorId: session.mentorId, learnerId: session.learnerId, sessionId: session.id } }, create: { mentorId: session.mentorId, learnerId: session.learnerId, sessionId: session.id, rating, feedback }, update: { rating, feedback } });
+      const stats = await tx.review.aggregate({ where: { mentorId: session.mentorId }, _avg: { rating: true }, _count: { _all: true } });
+      await tx.user.update({ where: { id: session.mentorId }, data: { rating: Math.round((stats._avg.rating || rating) * 10) / 10, reviewCount: stats._count._all } });
+    }
+    const learner = await tx.user.findUnique({ where: { id: session.learnerId } });
+    const mentor = await tx.user.findUnique({ where: { id: session.mentorId } });
+    const updatedSession = { ...session, status: 'completed', completedAt, rating: rating ?? session.rating, feedback: feedback || session.feedback, recommendAnother };
+    if (learner) await applySessionCompletion(learner, updatedSession, tx);
+    if (mentor) await applySessionCompletion(mentor, updatedSession, tx);
+    return { learner: learner && await tx.user.findUnique({ where: { id: learner.id } }), mentor: mentor && await tx.user.findUnique({ where: { id: mentor.id } }) };
+  });
+  await Promise.all([evaluateBadges(session.mentorId), evaluateBadges(session.learnerId)]);
+  queueTrustRefresh(session.mentorId); queueTrustRefresh(session.learnerId);
   let nextSteps = [];
-  try {
-    const { suggestNext } = require('../services/nextStepsService');
-    const result = suggestNext(session.topic, learner?.careerGoal || '');
-    nextSteps = result.next || [];
-  } catch {
-    nextSteps = [];
-  }
-
-  const otherId = String(session.mentorId) === String(req.user._id) ? session.learnerId : session.mentorId;
-  await notify({
-    userId: otherId,
-    type: 'session',
-    title: 'Session completed 🎉',
-    message: `"${session.topic}" was completed${isLearner && rating ? ` and rated ${rating}/5.` : '.'}`,
-    data: { sessionId: session._id },
-  });
-
-  // Notify the completer too
-  await notify({
-    userId: req.user._id,
-    type: 'session',
-    title: 'Session completed 🎉',
-    message: `You completed "${session.topic}".${isLearner && rating ? ` Rated ${rating}/5.` : ''}`,
-    data: { sessionId: session._id },
-  });
-
-  res.json({
-    success: true,
-    session: await sessionLabel(session, req.user._id),
-    progress: {
-      sessionsCompleted: learner?.sessionsCompleted,
-      hoursLearned: learner?.hoursLearned,
-      hoursTaught: mentor?.hoursTaught,
-      learningStreak: learner?.learningStreak,
-      teachingStreak: mentor?.teachingStreak,
-    },
-    nextSteps,
-  });
+  try { nextSteps = require('../services/nextStepsService').suggestNext(session.topic, updated.learner?.careerGoal || '').next || []; } catch {}
+  const otherId = session.mentorId === actorId ? session.learnerId : session.mentorId;
+  await notify({ userId: otherId, type: 'session_completed', title: 'Session completed 🎉', message: `"${session.topic}" was completed${isLearner && rating ? ` and rated ${rating}/5.` : '.'}`, data: { sessionId: session.id } });
+  await notify({ userId: actorId, type: 'session_completed', title: 'Session completed 🎉', message: `You completed "${session.topic}".`, data: { sessionId: session.id } });
+  const finalSession = await prisma.session.findUnique({ where: { id: session.id }, include: sessionInclude });
+  res.json({ success: true, session: sessionLabel(finalSession, actorId), progress: { sessionsCompleted: updated.learner?.sessionsCompleted, hoursLearned: updated.learner?.hoursLearned, hoursTaught: updated.mentor?.hoursTaught, learningStreak: updated.learner?.learningStreak, teachingStreak: updated.mentor?.teachingStreak }, nextSteps });
 });
 
-const assertParticipant = (session, userId) => {
-  const isParticipant =
-    String(session.mentorId) === String(userId) || String(session.learnerId) === String(userId);
-  if (!isParticipant) throw new AppError('Not your session.', 403);
-};
-
-module.exports = {
-  createSession,
-  getSessions,
-  getSessionDashboard,
-  getSessionCalendar,
-  updateSession,
-  confirmSession,
-  cancelSession,
-  completeSession,
-};
+module.exports = { createSession, getSessions, getSessionDashboard, getSessionCalendar, updateSession, confirmSession, cancelSession, completeSession };

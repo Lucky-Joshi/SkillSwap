@@ -11,6 +11,11 @@ real time, schedule sessions, and earn badges & certificates.
 
 > LinkedIn for college skills · GitHub for student expertise · AI-powered peer mentoring.
 
+The backend uses Prisma 7 with Supabase Postgres. Copy `backend/.env.example` to
+`backend/.env`, then set the database URLs, a unique 32+ character `JWT_SECRET`,
+the deployed frontend origin, and Resend email credentials. Prisma connects directly
+to Postgres; the frontend never receives database credentials.
+
 ---
 
 ## Tech Stack
@@ -18,8 +23,8 @@ real time, schedule sessions, and earn badges & certificates.
 | Layer      | Technology |
 |------------|------------|
 | Frontend   | React 18, Vite, Tailwind CSS v3.4, React Router v6, Axios, Framer Motion, React Hook Form, React Hot Toast, react-window, Socket.IO Client |
-| Backend    | Node.js, Express, Mongoose, JWT, Bcryptjs, Multer, Socket.IO, express-validator, Helmet, Winston, compression |
-| Database   | MongoDB 7 (MongoDB Atlas in production) |
+| Backend    | Node.js, Express, Prisma ORM, JWT, Bcryptjs, Multer, Socket.IO, express-validator, Helmet, Winston |
+| Database   | Supabase Postgres |
 | AI Service | Python, FastAPI, sentence-transformers, scikit-learn, spaCy, NetworkX |
 
 ---
@@ -43,9 +48,9 @@ real time, schedule sessions, and earn badges & certificates.
 └────────┬─────────────────────┬───────────────┘
          │                     │
 ┌────────▼────────┐  ┌────────▼────────────┐
-│    MongoDB 7    │  │  FastAPI AI Service  │   Port 8000
-│   (Mongoose)    │  │  SBERT · TF-IDF     │
-└─────────────────┘  │  NetworkX · spaCy    │
+│ Supabase Postgres│ │  FastAPI AI Service  │   Port 8000
+│    (Prisma)      │ │  SBERT · TF-IDF     │
+└──────────────────┘ │  NetworkX · spaCy    │
                      └─────────────────────┘
 ```
 
@@ -57,9 +62,9 @@ real time, schedule sessions, and earn badges & certificates.
 |----------|-------------|
 | [**Architecture**](ARCHITECTURE.md) | System design, component hierarchy, user journeys |
 | [**API Reference**](API.md) | Complete REST API + Socket.IO events (120+ endpoints) |
-| [**Database**](DATABASE.md) | ER diagram + MongoDB schema definitions (14 models) |
+| [**Database**](DATABASE.md) | Relational schema and Supabase Postgres setup |
 | [**AI Service**](AI.md) | FastAPI endpoints & ML pipeline |
-| [**Deployment**](DEPLOYMENT.md) | Docker, Railway, Vercel, MongoDB Atlas |
+| [**Deployment**](DEPLOYMENT.md) | Docker, Railway, Vercel, Supabase Postgres |
 | [**Security**](SECURITY.md) | Auth, hardening, rate limiting |
 | [**Docker**](DOCKER.md) | Container setup and commands |
 | [**Features**](FEATURES.md) | All features categorized by role |
@@ -153,14 +158,16 @@ SkillSwap/
 ### Prerequisites
 - Node.js 18+ and npm
 - Python 3.10+
-- MongoDB (local or [Atlas](https://www.mongodb.com/atlas))
+- A Supabase project with Postgres enabled
 
 ### 1. Backend
 
 ```bash
 cd backend
 npm install
-cp .env.example .env          # edit values
+cp .env.example .env          # add Postgres URLs, JWT secret, and email credentials
+npm run prisma:generate
+npm run prisma:migrate:deploy # apply checked-in relational migrations
 npm run seed                  # seed core data (skills, badges, institutions)
 npm run dev                   # http://localhost:5000
 ```
@@ -191,11 +198,14 @@ cp .env.example .env          # VITE_API_URL / VITE_SOCKET_URL
 npm run dev                   # http://localhost:5173
 ```
 
-### 5. Everything at once
+### 5. Docker Compose
 
 ```bash
-docker compose up --build
+docker compose --env-file backend/.env up --build
 ```
+
+Apply database migrations before starting a new release with
+`cd backend && npm run prisma:migrate:deploy`.
 
 Open http://localhost:5173 and register a new account.
 
@@ -265,7 +275,7 @@ Landing → Sign Up → Verify College Email → Complete Profile → Select Ski
 
 - JWT auth with bcrypt password hashing (cost 12), httpOnly tokens
 - Input validation (express-validator) + rate limiting
-- Helmet, CORS allowlist, express-mongo-sanitize, XSS cleaning
+- Helmet, CORS allowlist, Postgres parameterized queries, XSS cleaning
 - Protected routes on both API and frontend (PublicOnlyRoute, ProtectedRoute, AdminGuard)
 - Role-based access control (student/admin) with `restrictTo()` middleware
 - Admin account creation via CLI script (`create-admin.js`)

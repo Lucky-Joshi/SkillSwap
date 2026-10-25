@@ -67,7 +67,7 @@ SkillSwap is a three-tier, full-stack platform for peer-to-peer skill exchange w
 └───────────────────────────────────┬───────────────────────────────────────┘
                                     │
                                ┌────┴────┐
-                               │ MongoDB │
+                               │ Supabase Postgres │
                                │    7    │
                                └─────────┘
 
@@ -97,7 +97,7 @@ SkillSwap is a three-tier, full-stack platform for peer-to-peer skill exchange w
 | **Frontend** | Rendering, routing, form state, realtime chat UI, theme. Three zones: public marketing, protected student app, admin portal. Talks only to the backend (same-origin via Vite proxy in dev, reverse proxy in prod). |
 | **Backend** | Auth (JWT + bcrypt + role-based), REST API, Socket.IO realtime, file uploads (multer), business rules (connections, sessions, reviews, badges, certificates, leaderboard, points, reports), orchestration of the AI service with graceful fallback. |
 | **AI Service** | Semantic skill matching, learning roadmap generation, skill-graph / related-skills queries, resume parsing (PDF/DOCX/TXT). |
-| **MongoDB** | Single source of truth for all persisted data. |
+| **Supabase Postgres** | Relational source of truth accessed by the backend through Prisma. |
 
 ---
 
@@ -172,7 +172,7 @@ SkillSwap is a three-tier, full-stack platform for peer-to-peer skill exchange w
   - `routes/` — thin HTTP mapping + validation chains.
   - `controllers/` — request handling, authz checks, orchestration.
   - `services/` — cross-cutting logic: AI client + heuristics (`recommendationService`, `roadmapService`), badges, notifications, user serialization, mentorship/connection logic, cleanup, reminders.
-  - `models/` — Mongoose schemas (14 models).
+  - `prisma/` — relational schema and migrations.
   - `middleware/` — `auth` (JWT + `restrictTo`), `validate` (express-validator results), `upload` (multer), `errorHandler`, `notFound`.
   - `scripts/` — `seed.js` (core data), `create-admin.js` (admin accounts).
   - `events/` — event bus + handlers for decoupled side effects.

@@ -1,67 +1,63 @@
-const Skill = require('../models/Skill');
+const prisma = require('../lib/prisma');
 const AppError = require('../utils/AppError');
 const asyncHandler = require('../utils/asyncHandler');
 const { paginate, paginateResults } = require('../utils/paginate');
 
-// @route  GET /api/skills?search=&category=&difficulty=&page=&limit=
-// @access private
+const toDbCategory = (category) => typeof category === 'string' ? category.replaceAll('-', '_') : category;
+const toApiSkill = (skill) => ({ ...skill, _id: skill.id, category: skill.category.replaceAll('_', '-') });
+
 const getSkills = asyncHandler(async (req, res) => {
   const { search, category, difficulty } = req.query;
-  const filter = {};
-  if (category) filter.category = category;
-  if (difficulty) filter.difficulty = difficulty;
+  const where = {};
+  if (category) where.category = toDbCategory(category);
+  if (difficulty) where.difficulty = difficulty;
   if (search) {
-    filter.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { aliases: { $regex: search, $options: 'i' } },
+    where.OR = [
+      { name: { contains: String(search), mode: 'insensitive' } },
+      { aliases: { has: String(search).toLowerCase() } },
     ];
   }
-
   const { page, limit, skip } = paginate(req);
-  const [skills, total] = await Promise.all([
-    Skill.find(filter).sort({ category: 1, name: 1 }).skip(skip).limit(limit),
-    Skill.countDocuments(filter),
+  const [rows, total] = await Promise.all([
+    prisma.skill.findMany({ where, orderBy: [{ category: 'asc' }, { name: 'asc' }], skip, take: limit }),
+    prisma.skill.count({ where }),
   ]);
-
-  res.json({ success: true, ...paginateResults(skills, total, page, limit) });
+  res.json({ success: true, ...paginateResults(rows.map(toApiSkill), total, page, limit) });
 });
 
-// @route  GET /api/skills/categories
-// @access private
-const getCategories = asyncHandler(async (req, res) => {
-  const categories = await Skill.distinct('category');
-  res.json({ success: true, categories });
+const getCategories = asyncHandler(async (_req, res) => {
+  const rows = await prisma.skill.findMany({ distinct: ['category'], select: { category: true }, orderBy: { category: 'asc' } });
+  res.json({ success: true, categories: rows.map(({ category }) => category.replaceAll('_', '-')) });
 });
 
-// @route  POST /api/skills
-// @access private
-const createSkill = asyncHandler(async (req, res, next) => {
-  const { name, category, difficulty, icon, aliases } = req.body;
-  const exists = await Skill.exists({ name: { $regex: `^${name}$`, $options: 'i' } });
+const createSkill = asyncHandler(async (req, res) => {
+  const { name, category = 'other', difficulty = 'beginner', icon, aliases = [] } = req.body;
+  const exists = await prisma.skill.findFirst({ where: { name: { equals: name, mode: 'insensitive' } }, select: { id: true } });
   if (exists) throw new AppError('Skill already exists.', 409);
-
-  const skill = await Skill.create({ name, category, difficulty, icon, aliases });
-  res.status(201).json({ success: true, skill });
+  const skill = await prisma.skill.create({ data: { name, category: toDbCategory(category), difficulty, icon, aliases } });
+  res.status(201).json({ success: true, skill: toApiSkill(skill) });
 });
 
-// @route  PUT /api/skills/:id
-// @access private
-const updateSkill = asyncHandler(async (req, res, next) => {
+const updateSkill = asyncHandler(async (req, res) => {
   const { name, category, difficulty, icon, aliases } = req.body;
-  const skill = await Skill.findByIdAndUpdate(
-    req.params.id,
-    { name, category, difficulty, icon, aliases },
-    { new: true, runValidators: true }
-  );
-  if (!skill) throw new AppError('Skill not found.', 404);
-  res.json({ success: true, skill });
+  const data = Object.fromEntries(Object.entries({ name, category: toDbCategory(category), difficulty, icon, aliases }).filter(([, value]) => value !== undefined));
+  let skill;
+  try {
+    skill = await prisma.skill.update({ where: { id: req.params.id }, data });
+  } catch (error) {
+    if (error.code === 'P2025') throw new AppError('Skill not found.', 404);
+    throw error;
+  }
+  res.json({ success: true, skill: toApiSkill(skill) });
 });
 
-// @route  DELETE /api/skills/:id
-// @access private
-const deleteSkill = asyncHandler(async (req, res, next) => {
-  const skill = await Skill.findByIdAndDelete(req.params.id);
-  if (!skill) throw new AppError('Skill not found.', 404);
+const deleteSkill = asyncHandler(async (req, res) => {
+  try {
+    await prisma.skill.delete({ where: { id: req.params.id } });
+  } catch (error) {
+    if (error.code === 'P2025') throw new AppError('Skill not found.', 404);
+    throw error;
+  }
   res.json({ success: true, message: 'Skill deleted.' });
 });
 

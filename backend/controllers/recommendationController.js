@@ -1,121 +1,80 @@
-const User = require('../models/User');
-const UserSkill = require('../models/UserSkill');
-const Connection = require('../models/Connection');
+const prisma = require('../lib/prisma');
 const asyncHandler = require('../utils/asyncHandler');
 const { rankCandidates, buildCards } = require('../services/recommendationService');
 const aiClient = require('../services/aiClient');
 
-const withSkills = async (users) => {
-  const out = [];
-  for (const u of users) {
-    const skills = await UserSkill.find({ userId: u._id }).populate('skillId').lean();
-    out.push({
-      ...(u.toObject ? u.toObject() : u),
-      skills: skills.map((s) => ({
-        ...s,
-        skillId: s.skillId,
-        name: s.skillId?.name || 'Unknown',
-      })),
-    });
-  }
-  return out;
-};
+const YEAR_VALUES = { year1: '1', year2: '2', year3: '3', year4: '4', year5: '5', graduate: 'Graduate' };
+const withSkills = (user) => ({
+  ...user,
+  _id: user.id,
+  year: YEAR_VALUES[user.year] || user.year,
+  skills: (user.userSkills || []).map((row) => ({
+    ...row,
+    _id: row.id,
+    skillId: { ...row.skill, _id: row.skill.id },
+    name: row.skill.name,
+  })),
+});
 
-const existingMatchKeys = async (userId) => {
-  const connections = await Connection.find({
-    $or: [{ userA: userId }, { userB: userId }],
-  }).select('userA userB status');
-  const keySet = new Set();
-  connections.forEach((c) => {
-    keySet.add(`${String(c.userA)}_${String(c.userB)}`);
-    keySet.add(`${String(c.userB)}_${String(c.userA)}`);
-  });
-  return { matches: connections, keySet };
-};
-
-// @route  GET /api/recommendations?mode=mentors|learners
-// @access private
 const getRecommendations = asyncHandler(async (req, res) => {
   const mode = req.query.mode === 'learners' ? 'learners' : 'mentors';
+  const skillInclude = { userSkills: { include: { skill: true } } };
+  const [candidateRows, meRow, connections] = await Promise.all([
+    prisma.user.findMany({
+      where: {
+        id: { not: req.user.id }, isVerified: true, role: { notIn: ['admin', 'super_admin'] }, profileVisibility: { not: 'private' },
+        status: { notIn: ['suspended', 'deleted', 'banned'] },
+      },
+      include: skillInclude,
+    }),
+    prisma.user.findUnique({ where: { id: req.user.id }, include: skillInclude }),
+    prisma.connection.findMany({ where: { OR: [{ userAId: req.user.id }, { userBId: req.user.id }] }, select: { userAId: true, userBId: true } }),
+  ]);
+  const candidates = candidateRows.map(withSkills);
+  const meWithSkills = withSkills(meRow);
+  const keySet = new Set();
+  for (const connection of connections) {
+    keySet.add(`${connection.userAId}_${connection.userBId}`);
+    keySet.add(`${connection.userBId}_${connection.userAId}`);
+  }
 
-  const candidates = await User.find({
-    _id: { $ne: req.user._id },
-    isVerified: true,
-    role: { $ne: 'admin' },
-    status: { $nin: ['suspended', 'deleted', 'banned'] },
-  }).lean();
-
-  const candidatesWithSkills = await withSkills(candidates);
-  const meWithSkills = {
-    ...req.user.toObject(),
-    skills: (await UserSkill.find({ userId: req.user._id }).populate('skillId').lean()).map(
-      (s) => ({ ...s, skillId: s.skillId, name: s.skillId?.name || 'Unknown' })
-    ),
-  };
-
-  const { keySet } = await existingMatchKeys(req.user._id);
-
-  // Try the FastAPI semantic engine; fall back to heuristic on failure.
   let ranked;
   try {
     const payload = {
       user: {
-        id: String(req.user._id),
-        skills: meWithSkills.skills.map((s) => s.name),
-        canTeach: meWithSkills.skills.filter((s) => s.canTeach).map((s) => s.name),
-        wantToLearn: meWithSkills.skills.filter((s) => s.wantToLearn).map((s) => s.name),
-        department: meWithSkills.department,
-        year: meWithSkills.year,
-        availability: meWithSkills.availability,
-        rating: meWithSkills.rating,
+        id: meWithSkills.id,
+        skills: meWithSkills.skills.map((skill) => skill.name),
+        canTeach: meWithSkills.skills.filter((skill) => skill.canTeach).map((skill) => skill.name),
+        wantToLearn: meWithSkills.skills.filter((skill) => skill.wantToLearn).map((skill) => skill.name),
+        department: meWithSkills.department, year: meWithSkills.year,
+        availability: meWithSkills.availability, rating: meWithSkills.rating,
       },
-      candidates: candidatesWithSkills.map((c) => ({
-        id: String(c._id),
-        skills: c.skills.map((s) => s.name),
-        canTeach: c.skills.filter((s) => s.canTeach).map((s) => s.name),
-        wantToLearn: c.skills.filter((s) => s.wantToLearn).map((s) => s.name),
-        department: c.department,
-        year: c.year,
-        availability: c.availability,
-        rating: c.rating,
+      candidates: candidates.map((user) => ({
+        id: user.id,
+        skills: user.skills.map((skill) => skill.name),
+        canTeach: user.skills.filter((skill) => skill.canTeach).map((skill) => skill.name),
+        wantToLearn: user.skills.filter((skill) => skill.wantToLearn).map((skill) => skill.name),
+        department: user.department, year: user.year,
+        availability: user.availability, rating: user.rating,
       })),
       mode,
       limit: 20,
     };
-    const result = await aiClient.tryAi(
-      '/recommendations',
-      payload,
-      () => rankCandidates(meWithSkills, candidatesWithSkills, { mode })
-    );
+    const result = await aiClient.tryAi('/recommendations', payload, () => rankCandidates(meWithSkills, candidates, { mode }));
     ranked = Array.isArray(result.results) ? result.results : result;
   } catch {
-    ranked = await rankCandidates(meWithSkills, candidatesWithSkills, { mode });
+    ranked = await rankCandidates(meWithSkills, candidates, { mode });
   }
-
-  // Map AI results back to user cards.
-  const scoresById = new Map();
-  ranked.forEach((r) => scoresById.set(String(r.userId || r.id), r));
-
-  const validUsers = candidatesWithSkills.filter((c) => scoresById.has(String(c._id)));
-  const cards = buildCards(validUsers, scoresById);
-
-  const finalCards = cards
-    .filter((c) => !keySet.has(`${req.user._id}_${c.id}`) && !keySet.has(`${c.id}_${req.user._id}`))
+  const scoresById = new Map(ranked.map((row) => [String(row.userId || row.id), row]));
+  const cards = buildCards(candidates.filter((user) => scoresById.has(String(user.id))), scoresById);
+  const data = cards
+    .filter((card) => !keySet.has(`${req.user.id}_${card.id}`) && !keySet.has(`${card.id}_${req.user.id}`))
     .sort((a, b) => b.score - a.score)
     .slice(0, 20);
-
-  res.json({
-    success: true,
-    mode,
-    data: finalCards,
-    aiService: await aiClient.isUp().catch(() => false),
-  });
+  res.json({ success: true, mode, data, aiService: await aiClient.isUp().catch(() => false) });
 });
 
-// @route  POST /api/recommendations/refresh
-// @access private
-const refreshRecommendations = asyncHandler(async (req, res) => {
-  // Recompute happens on every GET; refresh simply forces a fresh DB snapshot.
+const refreshRecommendations = asyncHandler(async (_req, res) => {
   res.json({ success: true, message: 'Recommendations refreshed.' });
 });
 

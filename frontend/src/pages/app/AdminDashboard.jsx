@@ -69,7 +69,7 @@ export default function AdminDashboard() {
     student: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
     faculty: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
     alumni: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
-    'super-admin': 'bg-purple-600/15 text-purple-700 dark:text-purple-300',
+    super_admin: 'bg-purple-600/15 text-purple-700 dark:text-purple-300',
   };
 
   return (

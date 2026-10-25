@@ -46,7 +46,7 @@ export default function Admin() {
   }, []);
 
   useEffect(() => {
-    if (user?.role !== 'admin') {
+    if (!['admin', 'super_admin'].includes(user?.role)) {
       setLoading(false);
       return;
     }
@@ -79,7 +79,7 @@ export default function Admin() {
 
   if (loading) return <Spinner />;
 
-  if (user?.role !== 'admin') {
+  if (!['admin', 'super_admin'].includes(user?.role)) {
     return <EmptyState icon="🔒" title="Admin only" description="You do not have access to the admin tools." />;
   }
 
@@ -199,7 +199,7 @@ export default function Admin() {
                     </td>
                     <td className="py-2.5 pr-4 text-xs text-slate-400">{formatDate(u.createdAt)}</td>
                     <td className="py-2.5 text-right">
-                      {!u.isDemo && u.role !== 'admin' && (
+                      {!u.isDemo && !['admin', 'super_admin'].includes(u.role) && (
                         <Button
                           variant="ghost"
                           className="!px-2 !py-1 text-xs text-red-500"

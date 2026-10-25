@@ -88,7 +88,7 @@ export default function About() {
               <h3 className="font-display text-sm font-bold uppercase tracking-wider text-slate-400">Backend</h3>
               <ul className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
                 <li>Node.js + Express</li>
-                <li>MongoDB + Mongoose</li>
+                <li>Supabase Postgres + Prisma</li>
                 <li>Socket.IO Server</li>
                 <li>JWT Authentication</li>
               </ul>
@@ -106,7 +106,7 @@ export default function About() {
               <h3 className="font-display text-sm font-bold uppercase tracking-wider text-slate-400">Infrastructure</h3>
               <ul className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
                 <li>Docker Compose</li>
-                <li>MongoDB Atlas</li>
+                <li>Supabase</li>
                 <li>Vercel / Netlify (Frontend)</li>
                 <li>Railway / Render (Backend)</li>
               </ul>

@@ -1,65 +1,53 @@
-const Badge = require('../models/Badge');
-const UserBadge = require('../models/UserBadge');
-const User = require('../models/User');
-const UserSkill = require('../models/UserSkill');
-const Review = require('../models/Review');
-const Session = require('../models/Session');
-const Connection = require('../models/Connection');
+const prisma = require('../lib/prisma');
 const { notify } = require('./notificationService');
 
 const BADGE_KEYS = {
-  'First Steps': 'First Steps',
-  'Profile Pro': 'Profile Pro',
-  'Skill Collector': 'Skill Collector',
-  'First Match': 'First Match',
-  'Networker': 'Networker',
-  'Session Master': 'Session Master',
-  'Mentor Star': 'Mentor Star',
-  'Top Contributor': 'Top Contributor',
+  'First Steps': 'First Steps', 'Profile Pro': 'Profile Pro', 'Skill Collector': 'Skill Collector',
+  'First Match': 'First Match', Networker: 'Networker', 'Session Master': 'Session Master',
+  'Mentor Star': 'Mentor Star', 'Top Contributor': 'Top Contributor',
 };
 
 const grantBadge = async (userId, badgeName, source = 'auto') => {
-  const badge = await Badge.findOne({ name: badgeName });
+  const badge = await prisma.badge.findUnique({ where: { name: badgeName } });
   if (!badge) return null;
-  const exists = await UserBadge.exists({ userId, badgeId: badge._id });
-  if (exists) return null;
-
-  const earned = await UserBadge.create({ userId, badgeId: badge._id, source });
-  await User.findByIdAndUpdate(userId, { $inc: { points: badge.points } });
-  await notify({
-    userId,
-    type: 'badge',
-    title: `Badge unlocked: ${badge.name}`,
-    message: `${badge.icon} ${badge.description}`,
-    data: { badgeId: badge._id },
-  });
-  return earned;
+  try {
+    const earned = await prisma.$transaction(async (tx) => {
+      const row = await tx.userBadge.create({ data: { userId: String(userId), badgeId: badge.id, source } });
+      await tx.user.update({ where: { id: String(userId) }, data: { points: { increment: badge.points } } });
+      return row;
+    });
+    await notify({
+      userId,
+      type: 'badge_earned',
+      title: `Badge unlocked: ${badge.name}`,
+      message: `${badge.icon} ${badge.description}`,
+      data: { badgeId: badge.id },
+    });
+    return earned;
+  } catch (error) {
+    if (error.code === 'P2002') return null;
+    throw error;
+  }
 };
 
-/**
- * Check-and-grant badges based on the user's current stats.
- */
 const evaluateBadges = async (userId) => {
   const [skillCount, reviewCount, sessionCount, matchCount, user] = await Promise.all([
-    UserSkill.countDocuments({ userId }),
-    Review.countDocuments({ $or: [{ mentor: userId }, { learner: userId }] }),
-    Session.countDocuments({ $or: [{ mentorId: userId }, { learnerId: userId }], status: 'completed' }),
-    Connection.countDocuments({ $or: [{ userA: userId }, { userB: userId }], status: { $ne: 'rejected' } }),
-    User.findById(userId),
+    prisma.userSkill.count({ where: { userId } }),
+    prisma.review.count({ where: { OR: [{ mentorId: userId }, { learnerId: userId }] } }),
+    prisma.session.count({ where: { OR: [{ mentorId: userId }, { learnerId: userId }], status: 'completed' } }),
+    prisma.connection.count({ where: { OR: [{ userAId: userId }, { userBId: userId }], status: { not: 'rejected' } } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { id: true, bio: true, points: true } }),
   ]);
-
   const grants = [];
-  if (user && skillCount >= 1) grants.push(grantBadge(userId, BADGE_KEYS['First Steps']));
-  if (user && skillCount >= 3 && user.bio) grants.push(grantBadge(userId, BADGE_KEYS['Profile Pro']));
-  if (skillCount >= 5) grants.push(grantBadge(userId, BADGE_KEYS['Skill Collector']));
-  if (matchCount >= 1) grants.push(grantBadge(userId, BADGE_KEYS['First Match']));
-  if (matchCount >= 3) grants.push(grantBadge(userId, BADGE_KEYS['Networker']));
-  if (sessionCount >= 1) grants.push(grantBadge(userId, BADGE_KEYS['Session Master']));
-  if (reviewCount >= 5) grants.push(grantBadge(userId, BADGE_KEYS['Mentor Star']));
-  if ((user?.points || 0) >= 100) grants.push(grantBadge(userId, BADGE_KEYS['Top Contributor']));
-
-  await Promise.all(grants.filter(Boolean));
-  return grants.filter(Boolean);
+  if (user && skillCount >= 1) grants.push([BADGE_KEYS['First Steps']]);
+  if (user && skillCount >= 3 && user.bio) grants.push([BADGE_KEYS['Profile Pro']]);
+  if (skillCount >= 5) grants.push([BADGE_KEYS['Skill Collector']]);
+  if (matchCount >= 1) grants.push([BADGE_KEYS['First Match']]);
+  if (matchCount >= 3) grants.push([BADGE_KEYS.Networker]);
+  if (sessionCount >= 1) grants.push([BADGE_KEYS['Session Master']]);
+  if (reviewCount >= 5) grants.push([BADGE_KEYS['Mentor Star']]);
+  if ((user?.points || 0) >= 100) grants.push([BADGE_KEYS['Top Contributor']]);
+  return Promise.all(grants.map(([name]) => grantBadge(userId, name)));
 };
 
 module.exports = { grantBadge, evaluateBadges, BADGE_KEYS };

@@ -22,7 +22,7 @@ export default function Settings() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const canSelfDelete = user?.role !== 'admin';
+  const canSelfDelete = !['admin', 'super_admin'].includes(user?.role);
 
   const handleDeleteAccount = async () => {
     if (!confirmDelete) {

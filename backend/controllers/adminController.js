@@ -1,1006 +1,414 @@
-const mongoose = require('mongoose');
-const User = require('../models/User');
-const UserSkill = require('../models/UserSkill');
-const Connection = require('../models/Connection');
-const Session = require('../models/Session');
-const Message = require('../models/Message');
-const Review = require('../models/Review');
-const Notification = require('../models/Notification');
-const UserBadge = require('../models/UserBadge');
-const Skill = require('../models/Skill');
-const Badge = require('../models/Badge');
-const Institution = require('../models/Institution');
-const Report = require('../models/Report');
-const AdminAuditLog = require('../models/AdminAuditLog');
+const axios = require('axios');
+const prisma = require('../lib/prisma');
 const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/AppError');
-const { deleteUser, deleteUserData } = require('../services/cleanupService');
+const { deleteUser } = require('../services/cleanupService');
+const { notify } = require('../services/notificationService');
 const { queueTrustRefresh } = require('../services/trustService');
+const config = require('../config/env');
 
-const logAudit = async ({ admin, action, targetType, targetId, targetModel, targetName, reason, notes, ip, previousStatus, newStatus, metadata }) => {
-  try {
-    await AdminAuditLog.create({ admin, action, targetType, targetId, targetModel, targetName, reason, notes, ip, previousStatus, newStatus, metadata });
-  } catch (err) {
-    console.warn(`[audit] failed to log ${action}: ${err.message}`);
-  }
+const actorId = (req) => String(req.user.id || req.user._id);
+const getClientIp = (req) => String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
+const enumKey = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+const safeUser = (user) => {
+  if (!user) return user;
+  const { password, verificationToken, resetToken, resetTokenExpiry, ...safe } = user;
+  return { ...safe, _id: safe.id };
 };
-
-const notifyUser = async (userId, type, title, message, data = {}) => {
-  try {
-    await Notification.create({ userId, type, title, message, data });
-  } catch (err) {
-    console.warn(`[notification] failed to send to ${userId}: ${err.message}`);
-  }
+const parsePage = (query) => {
+  const page = Math.max(1, parseInt(query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 20));
+  return { page, limit, skip: (page - 1) * limit };
 };
-
-const getClientIp = (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || '';
-
-// ─── Dashboard ──────────────────────────────────────────────────────────────
+const orderFrom = (sort, allowed, fallback = 'createdAt') => {
+  const raw = String(sort || `-${fallback}`);
+  const desc = raw.startsWith('-');
+  const field = raw.replace(/^-/, '');
+  return allowed.includes(field) ? { [field]: desc ? 'desc' : 'asc' } : { [fallback]: 'desc' };
+};
+const logAudit = async (req, action, targetType, targetId, targetName = '', extra = {}) => {
+  try {
+    await prisma.adminAuditLog.create({ data: {
+      adminId: actorId(req), action, targetType, targetId: targetId ? String(targetId) : null,
+      targetModel: targetType === 'user' ? 'User' : targetType, targetName: targetName || '',
+      reason: extra.reason || '', notes: extra.notes || '', ip: getClientIp(req),
+      previousStatus: extra.previousStatus || '', newStatus: extra.newStatus || '', metadata: extra.metadata,
+    } });
+  } catch (err) { console.warn(`[audit] ${action} failed: ${err.message}`); }
+};
+const notifyUser = (userId, type, title, message, data = {}) => notify({ userId, type, title, message, data });
+const readUser = async (id) => prisma.user.findUnique({ where: { id } });
+const notFound = (message) => new AppError(message, 404);
+const userSummarySelect = { id: true, name: true, email: true, avatar: true, role: true, isVerified: true, status: true, trustScore: true, points: true, rating: true, profileViews: true, createdAt: true, lastActiveAt: true, suspensionReason: true, suspendedUntil: true, banReason: true, bannedAt: true };
 
 const getDashboard = asyncHandler(async (req, res) => {
   const now = new Date();
-  const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
-  const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
-
-  const [
-    totalUsers, activeUsers, verifiedUsers,
-    suspendedUsers, deletedUsers, bannedUsers,
-    newUsersThisWeek, newUsersThisMonth,
-    totalInstitutions,
-    totalConnections, activeConnections,
-    totalSessions, completedSessions, cancelledSessions, sessionsThisWeek, sessionsThisMonth,
-    totalMessages, totalReviews,
-    totalSkills, totalBadges, issuedBadges,
-    totalReports, pendingReports,
-    avgTrustResult, topSkills, recentUsers,
-  ] = await Promise.all([
-    User.countDocuments({}),
-    User.countDocuments({ lastActiveAt: { $gte: sevenDaysAgo }, status: { $nin: ['deleted', 'banned'] } }),
-    User.countDocuments({ isVerified: true }),
-    User.countDocuments({ status: 'suspended' }),
-    User.countDocuments({ status: 'deleted' }),
-    User.countDocuments({ status: 'banned' }),
-    User.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
-    User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
-    Institution.countDocuments({}),
-    Connection.countDocuments({}),
-    Connection.countDocuments({ active: true }),
-    Session.countDocuments({}),
-    Session.countDocuments({ status: 'completed' }),
-    Session.countDocuments({ status: 'cancelled' }),
-    Session.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
-    Session.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
-    Message.countDocuments({}),
-    Review.countDocuments({}),
-    Skill.countDocuments({}),
-    Badge.countDocuments({}),
-    UserBadge.countDocuments({}),
-    Report.countDocuments({}),
-    Report.countDocuments({ status: 'pending' }),
-    User.aggregate([
-      { $match: { status: { $nin: ['deleted', 'banned'] } } },
-      { $group: { _id: null, avg: { $avg: '$trustScore' } } },
-    ]),
-    UserSkill.aggregate([
-      { $group: { _id: '$skillId', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 5 },
-      { $lookup: { from: 'skills', localField: '_id', foreignField: '_id', as: 'skill' } },
-      { $unwind: '$skill' },
-      { $project: { name: '$skill.name', icon: '$skill.icon', count: 1 } },
-    ]),
-    User.find({ status: { $nin: ['deleted', 'banned'] } }).sort({ createdAt: -1 }).limit(5).select('name email avatar role isVerified status createdAt'),
+  const week = new Date(now.getTime() - 7 * 86400000);
+  const month = new Date(now.getTime() - 30 * 86400000);
+  const [totalUsers, activeUsers, verifiedUsers, suspendedUsers, deletedUsers, bannedUsers, newUsersThisWeek, newUsersThisMonth,
+    totalInstitutions, totalConnections, activeConnections, totalSessions, completedSessions, cancelledSessions,
+    sessionsThisWeek, sessionsThisMonth, totalMessages, totalReviews, totalSkills, totalBadges, issuedBadges, totalReports, pendingReports,
+    trust, topSkillRows, recentUsers] = await Promise.all([
+    prisma.user.count(), prisma.user.count({ where: { lastActiveAt: { gte: week }, status: { notIn: ['deleted', 'banned'] } } }),
+    prisma.user.count({ where: { isVerified: true } }), prisma.user.count({ where: { status: 'suspended' } }),
+    prisma.user.count({ where: { status: 'deleted' } }), prisma.user.count({ where: { status: 'banned' } }),
+    prisma.user.count({ where: { createdAt: { gte: week } } }), prisma.user.count({ where: { createdAt: { gte: month } } }),
+    prisma.institution.count(), prisma.connection.count(), prisma.connection.count({ where: { active: true } }),
+    prisma.session.count(), prisma.session.count({ where: { status: 'completed' } }), prisma.session.count({ where: { status: 'cancelled' } }),
+    prisma.session.count({ where: { createdAt: { gte: week } } }), prisma.session.count({ where: { createdAt: { gte: month } } }),
+    prisma.message.count(), prisma.review.count(), prisma.skill.count(), prisma.badge.count(), prisma.userBadge.count(),
+    prisma.report.count(), prisma.report.count({ where: { status: 'pending' } }),
+    prisma.user.aggregate({ where: { status: { notIn: ['deleted', 'banned'] } }, _avg: { trustScore: true } }),
+    prisma.userSkill.groupBy({ by: ['skillId'], _count: { _all: true }, orderBy: { _count: { skillId: 'desc' } }, take: 5 }),
+    prisma.user.findMany({ where: { status: { notIn: ['deleted', 'banned'] } }, orderBy: { createdAt: 'desc' }, take: 5, select: userSummarySelect }),
   ]);
-
-  res.json({
-    success: true,
-    dashboard: {
-      totalUsers, activeUsers, verifiedUsers,
-      suspendedUsers, deletedUsers, bannedUsers,
-      newUsersThisWeek, newUsersThisMonth,
-      totalInstitutions,
-      totalConnections, activeConnections,
-      totalSessions, completedSessions, cancelledSessions, sessionsThisWeek, sessionsThisMonth,
-      totalMessages, totalReviews,
-      totalSkills, totalBadges, issuedBadges,
-      totalReports, pendingReports,
-      avgTrustScore: Math.round((avgTrustResult[0]?.avg || 0) * 10) / 10,
-      topSkills, recentUsers,
-    },
-  });
+  const topSkills = await prisma.skill.findMany({ where: { id: { in: topSkillRows.map((row) => row.skillId) } }, select: { id: true, name: true, icon: true } });
+  res.json({ success: true, dashboard: {
+    totalUsers, activeUsers, verifiedUsers, suspendedUsers, deletedUsers, bannedUsers, newUsersThisWeek, newUsersThisMonth,
+    totalInstitutions, totalConnections, activeConnections, totalSessions, completedSessions, cancelledSessions, sessionsThisWeek,
+    sessionsThisMonth, totalMessages, totalReviews, totalSkills, totalBadges, issuedBadges, totalReports, pendingReports,
+    avgTrustScore: Math.round((trust._avg.trustScore || 0) * 10) / 10,
+    topSkills: topSkillRows.map((row) => ({ ...topSkills.find((skill) => skill.id === row.skillId), count: row._count._all })),
+    recentUsers: recentUsers.map(safeUser),
+  } });
 });
-
-// ─── User List ──────────────────────────────────────────────────────────────
 
 const listUsers = asyncHandler(async (req, res) => {
-  const { q, role, status: statusFilter, verified, sort = '-createdAt', page = 1, limit = 20 } = req.query;
-
-  const filter = {};
-  if (q && q.trim()) {
-    const rx = new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    filter.$or = [{ name: rx }, { email: rx }, { college: rx }];
-  }
-  if (role) filter.role = role;
-  if (statusFilter) {
-    filter.status = statusFilter;
-  } else {
-    filter.status = { $nin: ['deleted'] };
-  }
-  if (verified !== undefined) filter.isVerified = verified === 'true' || verified === true;
-
-  const pageNum = Math.max(1, parseInt(page, 10) || 1);
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
-  const skip = (pageNum - 1) * limitNum;
-
-  const [users, total] = await Promise.all([
-    User.find(filter).sort(sort).skip(skip).limit(limitNum)
-      .select('name email college role isVerified status trustScore points rating profileViews createdAt lastActiveAt avatar isSuspended suspensionReason suspendedUntil banReason bannedAt')
-      .lean(),
-    User.countDocuments(filter),
-  ]);
-
-  res.json({
-    success: true,
-    users: users.map((u) => ({ ...u, id: String(u._id) })),
-    pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) },
-  });
+  const { page, limit, skip } = parsePage(req.query);
+  const where = {};
+  if (req.query.q) where.OR = ['name', 'email', 'college'].map((field) => ({ [field]: { contains: String(req.query.q).trim().slice(0, 100), mode: 'insensitive' } }));
+  if (req.query.role) where.role = enumKey(req.query.role);
+  where.status = req.query.status ? enumKey(req.query.status) : { not: 'deleted' };
+  if (req.query.verified !== undefined) where.isVerified = req.query.verified === 'true';
+  const orderBy = orderFrom(req.query.sort, ['createdAt', 'name', 'email', 'points', 'rating', 'trustScore', 'lastActiveAt']);
+  const [users, total] = await Promise.all([prisma.user.findMany({ where, select: userSummarySelect, orderBy, skip, take: limit }), prisma.user.count({ where })]);
+  res.json({ success: true, users: users.map(safeUser), pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
 });
 
-// ─── Single User ────────────────────────────────────────────────────────────
-
-const getUser = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.params.id)
-    .select('-password -verificationToken -resetToken -resetTokenExpiry');
-  if (!user) return next(new AppError('User not found.', 404));
-
-  const [skills, activeConnections, sessionsCompletedCount, reviews, badges] = await Promise.all([
-    UserSkill.find({ userId: user._id }).populate('skillId', 'name category icon'),
-    Connection.countDocuments({ $or: [{ userA: user._id }, { userB: user._id }], active: true }),
-    Session.countDocuments({ $or: [{ mentorId: user._id }, { learnerId: user._id }], status: 'completed' }),
-    Review.find({ $or: [{ mentor: user._id }, { learner: user._id }] })
-      .populate('mentor', 'name email avatar')
-      .populate('learner', 'name email avatar')
-      .sort({ createdAt: -1 }),
-    UserBadge.find({ userId: user._id }).populate('badgeId', 'name description icon points'),
+const getUser = asyncHandler(async (req, res) => {
+  const user = await readUser(req.params.id);
+  if (!user) throw notFound('User not found.');
+  const [skills, activeConnections, completedSessions, reviews, badges, auditHistory] = await Promise.all([
+    prisma.userSkill.findMany({ where: { userId: user.id }, include: { skill: { select: { id: true, name: true, category: true, icon: true } } } }),
+    prisma.connection.count({ where: { OR: [{ userAId: user.id }, { userBId: user.id }], active: true } }),
+    prisma.session.count({ where: { OR: [{ mentorId: user.id }, { learnerId: user.id }], status: 'completed' } }),
+    prisma.review.findMany({ where: { OR: [{ mentorId: user.id }, { learnerId: user.id }] }, include: { mentor: { select: { id: true, name: true, email: true, avatar: true } }, learner: { select: { id: true, name: true, email: true, avatar: true } } }, orderBy: { createdAt: 'desc' }, take: 100 }),
+    prisma.userBadge.findMany({ where: { userId: user.id }, include: { badge: true }, orderBy: { earnedAt: 'desc' } }),
+    prisma.adminAuditLog.findMany({ where: { targetId: user.id, targetType: 'user' }, include: { admin: { select: { id: true, name: true, email: true } } }, orderBy: { createdAt: 'desc' }, take: 10 }),
   ]);
-
-  const recentLogs = await AdminAuditLog.find({ targetId: user._id, targetType: 'user' })
-    .populate('admin', 'name email')
-    .sort({ createdAt: -1 })
-    .limit(10)
-    .lean();
-
-  res.json({
-    success: true,
-    user: {
-      ...user.toObject(),
-      id: String(user._id),
-      skills,
-      activeConnections,
-      sessionsCompleted: sessionsCompletedCount,
-      reviews,
-      badges,
-      auditHistory: recentLogs,
-    },
-  });
+  res.json({ success: true, user: { ...safeUser(user), skills, activeConnections, sessionsCompleted: completedSessions, reviews, badges, auditHistory } });
 });
 
-// ─── Update User (basic fields: role only) ──────────────────────────────────
-
-const updateUser = asyncHandler(async (req, res, next) => {
+const updateUser = asyncHandler(async (req, res) => {
   const { role } = req.body;
-  const updates = {};
-  if (role !== undefined) updates.role = role;
-
-  if (Object.keys(updates).length === 0) {
-    return next(new AppError('No valid fields to update.', 400));
+  if (!['student', 'faculty', 'alumni', 'admin', 'super_admin'].includes(role)) throw new AppError('A valid role is required.', 400);
+  const user = await readUser(req.params.id);
+  if (!user) throw notFound('User not found.');
+  const actor = req.user.role;
+  if (user.id === actorId(req)) throw new AppError('You cannot change your own administrator role.', 400);
+  if (actor !== 'super_admin' && (['admin', 'super_admin'].includes(role) || ['admin', 'super_admin'].includes(user.role))) {
+    throw new AppError('Only a super administrator can change administrator roles.', 403);
   }
-
-  const user = await User.findById(req.params.id);
-  if (!user) return next(new AppError('User not found.', 404));
-
-  const previousRole = user.role;
-  if (role !== undefined) user.role = role;
-  await user.save({ validateModifiedOnly: true });
-
-  await logAudit({
-    admin: req.user._id,
-    action: 'update_user_role',
-    targetType: 'user',
-    targetId: user._id,
-    targetName: user.name,
-    reason: req.body.reason || '',
-    ip: getClientIp(req),
-    previousStatus: previousRole,
-    newStatus: role,
-  });
-
-  const updated = await User.findById(user._id).select('-password -verificationToken -resetToken -resetTokenExpiry');
-  res.json({ success: true, user: updated });
+  if (['admin', 'super_admin'].includes(user.role) && user.id === actorId(req) && role !== user.role) throw new AppError('You cannot change your own administrator role.', 400);
+  const updated = await prisma.user.update({ where: { id: user.id }, data: { role } });
+  await logAudit(req, 'update_user_role', 'user', user.id, user.name, { reason: req.body.reason, previousStatus: user.role, newStatus: role });
+  res.json({ success: true, user: safeUser(updated) });
 });
 
-// ─── Verify User ────────────────────────────────────────────────────────────
-
-const verifyUser = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.params.id);
-  if (!user) return next(new AppError('User not found.', 404));
-  if (user.status === 'deleted' || user.status === 'banned') {
-    return next(new AppError(`Cannot verify a ${user.status} user.`, 400));
-  }
-
-  const wasVerified = user.isVerified;
-  const previousStatus = user.status;
-
-  if (wasVerified) {
-    user.isVerified = false;
-    user.verifiedBy = undefined;
-    user.verifiedAt = undefined;
-    if (user.status === 'verified') user.status = 'active';
-
-    await user.save({ validateModifiedOnly: true });
-
-    await logAudit({
-      admin: req.user._id, action: 'unverify_user', targetType: 'user',
-      targetId: user._id, targetName: user.name, reason: req.body.reason || '',
-      ip: getClientIp(req), previousStatus, newStatus: user.status,
-    });
-
-    return res.json({ success: true, message: 'Verification removed.', user: { id: user._id, status: user.status, isVerified: false } });
-  }
-
-  user.isVerified = true;
-  user.status = 'verified';
-  user.verifiedBy = req.user._id;
-  user.verifiedAt = new Date();
-  await user.save({ validateModifiedOnly: true });
-
-  queueTrustRefresh(user._id);
-
-  await logAudit({
-    admin: req.user._id, action: 'verify_user', targetType: 'user',
-    targetId: user._id, targetName: user.name, reason: req.body.reason || '',
-    ip: getClientIp(req), previousStatus, newStatus: 'verified',
-  });
-
-  await notifyUser(user._id, 'user_verified', 'Profile Verified',
-    'Congratulations! Your profile has been verified by the SkillSwap Team. Verified users appear higher in Discover and gain higher trust scores.',
-    { verifiedBy: req.user._id }
-  );
-
-  res.json({ success: true, message: 'User verified.', user: { id: user._id, status: 'verified', isVerified: true } });
+const verifyUser = asyncHandler(async (req, res) => {
+  const user = await readUser(req.params.id);
+  if (!user) throw notFound('User not found.');
+  if (['deleted', 'banned'].includes(user.status)) throw new AppError(`Cannot verify a ${user.status} user.`, 400);
+  const isVerified = !user.isVerified;
+  const status = isVerified ? 'verified' : (user.status === 'verified' ? 'active' : user.status);
+  await prisma.user.update({ where: { id: user.id }, data: { isVerified, status, verifiedById: isVerified ? actorId(req) : null, verifiedAt: isVerified ? new Date() : null } });
+  if (isVerified) queueTrustRefresh(user.id);
+  await logAudit(req, isVerified ? 'verify_user' : 'unverify_user', 'user', user.id, user.name, { reason: req.body.reason, previousStatus: user.status, newStatus: status });
+  if (isVerified) await notifyUser(user.id, 'user_verified', 'Profile Verified', 'Your profile has been verified by the SkillSwap Team.', { verifiedBy: actorId(req) });
+  res.json({ success: true, message: isVerified ? 'User verified.' : 'Verification removed.', user: { id: user.id, status, isVerified } });
 });
 
-// ─── Suspend User ───────────────────────────────────────────────────────────
-
-const suspendUser = asyncHandler(async (req, res, next) => {
-  const { reason, duration, notes } = req.body;
-  if (!reason || !reason.trim()) return next(new AppError('A reason for suspension is required.', 400));
-
-  const user = await User.findById(req.params.id);
-  if (!user) return next(new AppError('User not found.', 404));
-  if (user.role === 'admin' || user.role === 'super-admin') {
-    return next(new AppError('Admin accounts cannot be suspended.', 400));
-  }
-
+const suspendUser = asyncHandler(async (req, res) => {
+  const user = await readUser(req.params.id);
+  if (!user) throw notFound('User not found.');
+  if (['admin', 'super_admin'].includes(user.role)) throw new AppError('Admin accounts cannot be suspended.', 400);
   if (user.status === 'suspended') {
-    user.status = 'active';
-    user.suspensionReason = '';
-    user.suspendedUntil = undefined;
-    user.suspendedBy = undefined;
-    user.suspensionNotes = '';
-    if (user.isVerified) user.status = 'verified';
-    await user.save({ validateModifiedOnly: true });
-
-    await logAudit({
-      admin: req.user._id, action: 'unsuspend_user', targetType: 'user',
-      targetId: user._id, targetName: user.name, reason,
-      ip: getClientIp(req), previousStatus: 'suspended', newStatus: user.status,
-    });
-
-    await notifyUser(user._id, 'user_reactivated', 'Account Restored',
-      'Your account suspension has been lifted. You can now use all features of SkillSwap.'
-    );
-
-    return res.json({ success: true, message: 'User unsuspended.', status: user.status });
+    const status = user.isVerified ? 'verified' : 'active';
+    await prisma.user.update({ where: { id: user.id }, data: { status, suspensionReason: '', suspendedUntil: null, suspendedById: null, suspensionNotes: '' } });
+    await logAudit(req, 'unsuspend_user', 'user', user.id, user.name, { reason: req.body.reason, previousStatus: 'suspended', newStatus: status });
+    await notifyUser(user.id, 'user_reactivated', 'Account Restored', 'Your account suspension has been lifted.');
+    return res.json({ success: true, message: 'User unsuspended.', status });
   }
-
-  const previousStatus = user.status;
-  let suspendedUntil = undefined;
-  if (duration) {
-    const num = parseInt(duration, 10);
-    if (!isNaN(num) && num > 0) {
-      const unit = req.body.durationUnit || 'days';
-      const ms = unit === 'hours' ? num * 3600000 : num * 86400000;
-      suspendedUntil = new Date(Date.now() + ms);
-    }
-  }
-
-  user.status = 'suspended';
-  user.suspensionReason = reason.trim();
-  user.suspendedUntil = suspendedUntil;
-  user.suspendedBy = req.user._id;
-  user.suspensionNotes = notes || '';
-  await user.save({ validateModifiedOnly: true });
-
-  await logAudit({
-    admin: req.user._id, action: 'suspend_user', targetType: 'user',
-    targetId: user._id, targetName: user.name, reason: reason.trim(),
-    notes: notes || '', ip: getClientIp(req), previousStatus, newStatus: 'suspended',
-    metadata: { duration, suspendedUntil },
-  });
-
-  const suspensionMsg = suspendedUntil
-    ? `Your account has been temporarily suspended.\n\nReason: ${reason}\nSuspended Until: ${suspendedUntil.toLocaleDateString()}`
-    : `Your account has been suspended indefinitely.\n\nReason: ${reason}`;
-
-  await notifyUser(user._id, 'user_suspended', 'Account Suspended', suspensionMsg, {
-    reason, suspendedUntil, suspendedBy: req.user._id,
-  });
-
+  const reason = String(req.body.reason || '').trim();
+  if (!reason) throw new AppError('A reason for suspension is required.', 400);
+  let suspendedUntil = null;
+  const duration = Number.parseInt(req.body.duration, 10);
+  if (Number.isFinite(duration) && duration > 0) suspendedUntil = new Date(Date.now() + duration * (req.body.durationUnit === 'hours' ? 3600000 : 86400000));
+  await prisma.user.update({ where: { id: user.id }, data: { status: 'suspended', suspensionReason: reason, suspendedUntil, suspendedById: actorId(req), suspensionNotes: req.body.notes || '' } });
+  await logAudit(req, 'suspend_user', 'user', user.id, user.name, { reason, notes: req.body.notes, previousStatus: user.status, newStatus: 'suspended', metadata: { duration, suspendedUntil } });
+  await notifyUser(user.id, 'user_suspended', 'Account Suspended', suspendedUntil ? `Your account is suspended until ${suspendedUntil.toLocaleDateString()}. Reason: ${reason}` : `Your account has been suspended. Reason: ${reason}`, { reason, suspendedUntil });
   res.json({ success: true, message: 'User suspended.', status: 'suspended', suspendedUntil });
 });
 
-// ─── Soft Delete User ───────────────────────────────────────────────────────
-
-const softDeleteUser = asyncHandler(async (req, res, next) => {
-  const { reason } = req.body;
-  if (!reason || !reason.trim()) return next(new AppError('A reason for deletion is required.', 400));
-
-  const user = await User.findById(req.params.id);
-  if (!user) return next(new AppError('User not found.', 404));
-  if (user.role === 'admin' || user.role === 'super-admin') {
-    return next(new AppError('Admin accounts cannot be deleted.', 400));
-  }
-  if (user.status === 'deleted') {
-    return next(new AppError('User is already deleted.', 400));
-  }
-
-  const previousStatus = user.status;
-
-  await notifyUser(user._id, 'user_deletion_warning', 'Account Deletion Notice',
-    'Your account has been marked for deletion. Your profile will be hidden and you will no longer be able to log in. Contact support if this was a mistake.',
-    { deletedBy: req.user._id }
-  );
-
-  user.status = 'deleted';
-  user.deletedAt = new Date();
-  user.deletedBy = req.user._id;
-  user.deletionType = 'soft';
-  user.isActive = false;
-  await user.save({ validateModifiedOnly: true });
-
-  await logAudit({
-    admin: req.user._id, action: 'soft_delete_user', targetType: 'user',
-    targetId: user._id, targetName: user.name, reason: reason.trim(),
-    ip: getClientIp(req), previousStatus, newStatus: 'deleted',
-  });
-
+const softDeleteUser = asyncHandler(async (req, res) => {
+  const user = await readUser(req.params.id);
+  if (!user) throw notFound('User not found.');
+  if (['admin', 'super_admin'].includes(user.role)) throw new AppError('Admin accounts cannot be deleted.', 400);
+  if (user.status === 'deleted') throw new AppError('User is already deleted.', 400);
+  const reason = String(req.body.reason || '').trim();
+  if (!reason) throw new AppError('A reason for deletion is required.', 400);
+  await prisma.user.update({ where: { id: user.id }, data: { status: 'deleted', deletedAt: new Date(), deletedById: actorId(req), deletionType: 'soft' } });
+  await logAudit(req, 'soft_delete_user', 'user', user.id, user.name, { reason, previousStatus: user.status, newStatus: 'deleted' });
+  await notifyUser(user.id, 'user_deletion_warning', 'Account Deletion Notice', 'Your account has been marked for deletion.', { deletedBy: actorId(req) });
   res.json({ success: true, message: 'User soft-deleted. They can be restored later.' });
 });
 
-// ─── Permanent Delete User ──────────────────────────────────────────────────
-
-const permanentDeleteUser = asyncHandler(async (req, res, next) => {
-  const { confirmation, reason } = req.body;
-  if (confirmation !== 'DELETE') {
-    return next(new AppError('Type DELETE to confirm permanent deletion.', 400));
-  }
-
-  const user = await User.findById(req.params.id);
-  if (!user) return next(new AppError('User not found.', 404));
-  if (user.role === 'admin' || user.role === 'super-admin') {
-    return next(new AppError('Admin accounts cannot be permanently deleted.', 400));
-  }
-
-  const previousStatus = user.status;
-  const userName = user.name;
-
-  await Message.updateMany({ sender: user._id }, { $set: { sender: null, message: '[Deleted User]' } });
-  await Review.updateMany({ mentor: user._id }, { $set: { mentor: null } });
-  await Review.updateMany({ learner: user._id }, { $set: { learner: null } });
-
-  await deleteUserData(user._id);
-  await User.findByIdAndDelete(user._id);
-
-  await logAudit({
-    admin: req.user._id, action: 'permanent_delete_user', targetType: 'user',
-    targetId: user._id, targetName: userName, reason: reason || '',
-    ip: getClientIp(req), previousStatus, newStatus: 'permanent',
-  });
-
+const permanentDeleteUser = asyncHandler(async (req, res) => {
+  if (req.body.confirmation !== 'DELETE') throw new AppError('Type DELETE to confirm permanent deletion.', 400);
+  const user = await readUser(req.params.id);
+  if (!user) throw notFound('User not found.');
+  if (['admin', 'super_admin'].includes(user.role)) throw new AppError('Admin accounts cannot be deleted.', 400);
+  await logAudit(req, 'permanent_delete_user', 'user', user.id, user.name, { reason: req.body.reason, previousStatus: user.status, newStatus: 'deleted' });
+  await deleteUser(user.id);
   res.json({ success: true, message: 'User permanently deleted.' });
 });
 
-// ─── Reactivate User ────────────────────────────────────────────────────────
-
-const reactivateUser = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.params.id);
-  if (!user) return next(new AppError('User not found.', 404));
-
-  const previousStatus = user.status;
-  if (!['suspended', 'deleted', 'banned'].includes(previousStatus)) {
-    return next(new AppError('User is not in a restricted state.', 400));
-  }
-
-  user.status = user.isVerified ? 'verified' : 'active';
-  user.suspensionReason = '';
-  user.suspendedUntil = undefined;
-  user.suspendedBy = undefined;
-  user.suspensionNotes = '';
-  user.banReason = '';
-  user.bannedBy = undefined;
-  user.bannedAt = undefined;
-  user.deletedAt = undefined;
-  user.deletedBy = undefined;
-  user.deletionType = '';
-  user.isActive = true;
-  await user.save({ validateModifiedOnly: true });
-
-  await logAudit({
-    admin: req.user._id, action: 'reactivate_user', targetType: 'user',
-    targetId: user._id, targetName: user.name, reason: req.body.reason || '',
-    ip: getClientIp(req), previousStatus, newStatus: user.status,
-  });
-
-  await notifyUser(user._id, 'user_reactivated', 'Account Restored',
-    'Your account has been restored. You can now log in and use all features of SkillSwap.'
-  );
-
-  res.json({ success: true, message: 'User reactivated.', status: user.status });
+const reactivateUser = asyncHandler(async (req, res) => {
+  const user = await readUser(req.params.id);
+  if (!user) throw notFound('User not found.');
+  if (user.status === 'banned') throw new AppError('Banned users must be unbanned first.', 400);
+  const status = user.isVerified ? 'verified' : 'active';
+  await prisma.user.update({ where: { id: user.id }, data: { status, deletedAt: null, deletedById: null, deletionType: null, suspensionReason: '', suspendedUntil: null, suspendedById: null, suspensionNotes: '' } });
+  await logAudit(req, 'reactivate_user', 'user', user.id, user.name, { reason: req.body.reason, previousStatus: user.status, newStatus: status });
+  await notifyUser(user.id, 'user_reactivated', 'Account Reactivated', 'Your account has been reactivated.');
+  res.json({ success: true, status });
 });
 
-// ─── Ban User ───────────────────────────────────────────────────────────────
-
-const banUser = asyncHandler(async (req, res, next) => {
-  const { reason } = req.body;
-  if (!reason || !reason.trim()) return next(new AppError('A reason for banning is required.', 400));
-
-  const user = await User.findById(req.params.id);
-  if (!user) return next(new AppError('User not found.', 404));
-  if (user.role === 'admin' || user.role === 'super-admin') {
-    return next(new AppError('Admin accounts cannot be banned.', 400));
+const banUser = asyncHandler(async (req, res) => {
+  const user = await readUser(req.params.id);
+  if (!user) throw notFound('User not found.');
+  if (['admin', 'super_admin'].includes(user.role)) throw new AppError('Admin accounts cannot be banned.', 400);
+  if (user.status === 'banned') {
+    const status = user.isVerified ? 'verified' : 'active';
+    await prisma.user.update({ where: { id: user.id }, data: { status, banReason: '', bannedById: null, bannedAt: null } });
+    await logAudit(req, 'unban_user', 'user', user.id, user.name, { previousStatus: 'banned', newStatus: status });
+    await notifyUser(user.id, 'user_reactivated', 'Account Restored', 'Your account ban has been lifted.');
+    return res.json({ success: true, message: 'User unbanned.', status });
   }
-
-  const previousStatus = user.status;
-  user.status = 'banned';
-  user.banReason = reason.trim();
-  user.bannedBy = req.user._id;
-  user.bannedAt = new Date();
-  await user.save({ validateModifiedOnly: true });
-
-  await logAudit({
-    admin: req.user._id, action: 'ban_user', targetType: 'user',
-    targetId: user._id, targetName: user.name, reason: reason.trim(),
-    ip: getClientIp(req), previousStatus, newStatus: 'banned',
-  });
-
-  await notifyUser(user._id, 'user_banned', 'Account Banned',
-    `Your account has been permanently banned.\n\nReason: ${reason}\n\nContact support if you believe this is an error.`
-  );
-
+  const reason = String(req.body.reason || '').trim();
+  if (!reason) throw new AppError('A reason for banning is required.', 400);
+  await prisma.user.update({ where: { id: user.id }, data: { status: 'banned', banReason: reason, bannedById: actorId(req), bannedAt: new Date() } });
+  await logAudit(req, 'ban_user', 'user', user.id, user.name, { reason, previousStatus: user.status, newStatus: 'banned' });
+  await notifyUser(user.id, 'user_banned', 'Account Banned', `Your account has been banned. Reason: ${reason}`, { reason });
   res.json({ success: true, message: 'User banned.', status: 'banned' });
 });
 
-// ─── Audit Logs ─────────────────────────────────────────────────────────────
-
 const listAuditLogs = asyncHandler(async (req, res) => {
-  const { action, targetType, admin, page = 1, limit = 50 } = req.query;
-
-  const filter = {};
-  if (action) filter.action = action;
-  if (targetType) filter.targetType = targetType;
-  if (admin) filter.admin = admin;
-
-  const pageNum = Math.max(1, parseInt(page, 10) || 1);
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
-  const skip = (pageNum - 1) * limitNum;
-
-  const [logs, total] = await Promise.all([
-    AdminAuditLog.find(filter)
-      .populate('admin', 'name email avatar')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .lean(),
-    AdminAuditLog.countDocuments(filter),
-  ]);
-
-  res.json({
-    success: true,
-    logs: logs.map((l) => ({ ...l, id: String(l._id) })),
-    pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) },
-  });
+  const { page, limit, skip } = parsePage(req.query);
+  const where = {};
+  if (req.query.action) where.action = enumKey(req.query.action);
+  if (req.query.targetType) where.targetType = enumKey(req.query.targetType);
+  if (req.query.adminId) where.adminId = req.query.adminId;
+  const [logs, total] = await Promise.all([prisma.adminAuditLog.findMany({ where, include: { admin: { select: { id: true, name: true, email: true } } }, orderBy: { createdAt: 'desc' }, skip, take: limit }), prisma.adminAuditLog.count({ where })]);
+  res.json({ success: true, logs, pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
 });
-
-// ─── Institutions ───────────────────────────────────────────────────────────
 
 const listInstitutions = asyncHandler(async (req, res) => {
-  const { q, type, sort = '-createdAt', page = 1, limit = 20 } = req.query;
-
-  const filter = {};
-  if (q && q.trim()) {
-    const rx = new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    filter.$or = [{ name: rx }, { city: rx }, { country: rx }];
-  }
-  if (type) filter.type = type;
-
-  const pageNum = Math.max(1, parseInt(page, 10) || 1);
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
-  const skip = (pageNum - 1) * limitNum;
-
-  const [institutions, total] = await Promise.all([
-    Institution.find(filter).sort(sort).skip(skip).limit(limitNum).lean(),
-    Institution.countDocuments(filter),
-  ]);
-
-  const enriched = await Promise.all(
-    institutions.map(async (inst) => {
-      const userCount = await User.countDocuments({ college: inst.name });
-      return { ...inst, id: String(inst._id), userCount };
-    })
-  );
-
-  res.json({
-    success: true,
-    institutions: enriched,
-    pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) },
-  });
+  const { page, limit, skip } = parsePage(req.query);
+  const where = {};
+  if (req.query.q) where.OR = ['name', 'city', 'country'].map((field) => ({ [field]: { contains: String(req.query.q).trim(), mode: 'insensitive' } }));
+  if (req.query.type) where.type = enumKey(req.query.type);
+  const [institutions, total] = await Promise.all([prisma.institution.findMany({ where, orderBy: orderFrom(req.query.sort, ['createdAt', 'name', 'city']), skip, take: limit }), prisma.institution.count({ where })]);
+  const counts = await prisma.user.groupBy({ by: ['college'], where: { college: { in: institutions.map((item) => item.name) } }, _count: { _all: true } });
+  res.json({ success: true, institutions: institutions.map((item) => ({ ...item, _id: item.id, userCount: counts.find((row) => row.college === item.name)?._count._all || 0 })), pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
 });
 
-const createInstitution = asyncHandler(async (req, res, next) => {
-  const { name, city, country, type } = req.body;
-  if (!name || !name.trim()) return next(new AppError('Institution name is required.', 400));
-
-  const existing = await Institution.findOne({ name: new RegExp('^' + name.trim() + '$', 'i') });
-  if (existing) return next(new AppError('An institution with this name already exists.', 409));
-
-  const institution = await Institution.create({ name: name.trim(), city, country, type });
-  await logAudit({ admin: req.user._id, action: 'create_institution', targetType: 'institution', targetId: institution._id, targetName: institution.name, ip: getClientIp(req) });
-  res.status(201).json({ success: true, institution });
+const createInstitution = asyncHandler(async (req, res) => {
+  if (!req.body.name?.trim()) throw new AppError('Institution name is required.', 400);
+  try {
+    const institution = await prisma.institution.create({ data: { name: req.body.name.trim(), city: req.body.city || '', country: req.body.country || '', type: enumKey(req.body.type || 'college') } });
+    await logAudit(req, 'create_institution', 'institution', institution.id, institution.name);
+    res.status(201).json({ success: true, institution: { ...institution, _id: institution.id } });
+  } catch (err) { if (err.code === 'P2002') throw new AppError('An institution with this name already exists.', 409); throw err; }
 });
-
-const updateInstitution = asyncHandler(async (req, res, next) => {
-  const institution = await Institution.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-  if (!institution) return next(new AppError('Institution not found.', 404));
-  await logAudit({ admin: req.user._id, action: 'update_institution', targetType: 'institution', targetId: institution._id, targetName: institution.name, ip: getClientIp(req) });
-  res.json({ success: true, institution });
+const updateInstitution = asyncHandler(async (req, res) => {
+  const data = {};
+  for (const key of ['name', 'city', 'country']) if (req.body[key] !== undefined) data[key] = req.body[key];
+  if (req.body.type !== undefined) data.type = enumKey(req.body.type);
+  const updated = await prisma.institution.update({ where: { id: req.params.id }, data }).catch((err) => { if (err.code === 'P2025') throw notFound('Institution not found.'); throw err; });
+  await logAudit(req, 'update_institution', 'institution', updated.id, updated.name);
+  res.json({ success: true, institution: { ...updated, _id: updated.id } });
 });
-
-const deleteInstitution = asyncHandler(async (req, res, next) => {
-  const institution = await Institution.findByIdAndDelete(req.params.id);
-  if (!institution) return next(new AppError('Institution not found.', 404));
-  await logAudit({ admin: req.user._id, action: 'delete_institution', targetType: 'institution', targetId: institution._id, targetName: institution.name, ip: getClientIp(req) });
+const deleteInstitution = asyncHandler(async (req, res) => {
+  const row = await prisma.institution.delete({ where: { id: req.params.id } }).catch((err) => { if (err.code === 'P2025') throw notFound('Institution not found.'); throw err; });
+  await logAudit(req, 'delete_institution', 'institution', row.id, row.name);
   res.json({ success: true, message: 'Institution deleted.' });
 });
-
-const mergeInstitutions = asyncHandler(async (req, res, next) => {
+const mergeInstitutions = asyncHandler(async (req, res) => {
   const { targetId, sourceIds } = req.body;
-  if (!targetId || !sourceIds || !Array.isArray(sourceIds) || sourceIds.length === 0) {
-    return next(new AppError('targetId and sourceIds array are required.', 400));
-  }
-
-  const target = await Institution.findById(targetId);
-  if (!target) return next(new AppError('Target institution not found.', 404));
-
-  const sources = await Institution.find({ _id: { $in: sourceIds } });
-  const sourceNames = sources.map((s) => s.name);
-
-  await User.updateMany({ college: { $in: sourceNames } }, { $set: { college: target.name } });
-  await Institution.deleteMany({ _id: { $in: sourceIds } });
-
-  await logAudit({
-    admin: req.user._id, action: 'merge_institutions', targetType: 'institution',
-    targetId: target._id, targetName: target.name, ip: getClientIp(req),
-    metadata: { sourceNames },
+  if (!targetId || !Array.isArray(sourceIds) || !sourceIds.length || sourceIds.includes(targetId)) throw new AppError('targetId and sourceIds array are required.', 400);
+  const [target, sources] = await Promise.all([prisma.institution.findUnique({ where: { id: targetId } }), prisma.institution.findMany({ where: { id: { in: sourceIds } } })]);
+  if (!target) throw notFound('Target institution not found.');
+  await prisma.$transaction(async (tx) => {
+    for (const source of sources) await tx.user.updateMany({ where: { college: source.name }, data: { college: target.name } });
+    await tx.institution.deleteMany({ where: { id: { in: sources.map((item) => item.id) } } });
   });
-
+  await logAudit(req, 'merge_institutions', 'institution', target.id, target.name, { metadata: { sourceNames: sources.map((item) => item.name) } });
   res.json({ success: true, message: `Merged ${sources.length} institution(s) into ${target.name}.` });
 });
 
-// ─── Skills ─────────────────────────────────────────────────────────────────
-
 const listSkills = asyncHandler(async (req, res) => {
-  const { q, category, sort = '-createdAt', page = 1, limit = 20 } = req.query;
-
-  const filter = {};
-  if (q && q.trim()) {
-    const rx = new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    filter.$or = [{ name: rx }, { aliases: rx }];
-  }
-  if (category) filter.category = category;
-
-  const pageNum = Math.max(1, parseInt(page, 10) || 1);
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
-  const skip = (pageNum - 1) * limitNum;
-
-  const [skills, total] = await Promise.all([
-    Skill.find(filter).sort(sort).skip(skip).limit(limitNum).lean(),
-    Skill.countDocuments(filter),
-  ]);
-
-  const enriched = await Promise.all(
-    skills.map(async (skill) => {
-      const userCount = await UserSkill.countDocuments({ skillId: skill._id });
-      return { ...skill, id: String(skill._id), userCount };
-    })
-  );
-
-  res.json({
-    success: true,
-    skills: enriched,
-    pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) },
-  });
+  const { page, limit, skip } = parsePage(req.query);
+  const where = {};
+  if (req.query.q) where.OR = [{ name: { contains: String(req.query.q).trim(), mode: 'insensitive' } }, { aliases: { has: String(req.query.q).trim() } }];
+  if (req.query.category) where.category = enumKey(req.query.category);
+  const [skills, total] = await Promise.all([prisma.skill.findMany({ where, orderBy: orderFrom(req.query.sort, ['createdAt', 'name', 'category', 'difficulty']), skip, take: limit }), prisma.skill.count({ where })]);
+  const counts = await prisma.userSkill.groupBy({ by: ['skillId'], where: { skillId: { in: skills.map((row) => row.id) } }, _count: { _all: true } });
+  res.json({ success: true, skills: skills.map((row) => ({ ...row, _id: row.id, userCount: counts.find((item) => item.skillId === row.id)?._count._all || 0 })), pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
 });
-
-const createSkill = asyncHandler(async (req, res, next) => {
-  const { name, aliases, category, difficulty, icon } = req.body;
-  if (!name || !name.trim()) return next(new AppError('Skill name is required.', 400));
-
-  const existing = await Skill.findOne({ name: new RegExp('^' + name.trim() + '$', 'i') });
-  if (existing) return next(new AppError('A skill with this name already exists.', 409));
-
-  const skill = await Skill.create({ name: name.trim(), aliases, category, difficulty, icon });
-  await logAudit({ admin: req.user._id, action: 'create_skill', targetType: 'skill', targetId: skill._id, targetName: skill.name, ip: getClientIp(req) });
-  res.status(201).json({ success: true, skill });
+const createSkill = asyncHandler(async (req, res) => {
+  if (!req.body.name?.trim()) throw new AppError('Skill name is required.', 400);
+  try {
+    const skill = await prisma.skill.create({ data: { name: req.body.name.trim(), aliases: req.body.aliases || [], category: enumKey(req.body.category || 'other'), difficulty: enumKey(req.body.difficulty || 'beginner'), icon: req.body.icon || '⭐' } });
+    await logAudit(req, 'create_skill', 'skill', skill.id, skill.name);
+    res.status(201).json({ success: true, skill: { ...skill, _id: skill.id } });
+  } catch (err) { if (err.code === 'P2002') throw new AppError('A skill with this name already exists.', 409); throw err; }
 });
-
-const updateSkill = asyncHandler(async (req, res, next) => {
-  const skill = await Skill.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-  if (!skill) return next(new AppError('Skill not found.', 404));
-  await logAudit({ admin: req.user._id, action: 'update_skill', targetType: 'skill', targetId: skill._id, targetName: skill.name, ip: getClientIp(req) });
-  res.json({ success: true, skill });
+const updateSkill = asyncHandler(async (req, res) => {
+  const data = {};
+  for (const key of ['name', 'aliases', 'icon']) if (req.body[key] !== undefined) data[key] = req.body[key];
+  for (const key of ['category', 'difficulty']) if (req.body[key] !== undefined) data[key] = enumKey(req.body[key]);
+  const updated = await prisma.skill.update({ where: { id: req.params.id }, data }).catch((err) => { if (err.code === 'P2025') throw notFound('Skill not found.'); throw err; });
+  await logAudit(req, 'update_skill', 'skill', updated.id, updated.name);
+  res.json({ success: true, skill: { ...updated, _id: updated.id } });
 });
-
-const deleteSkill = asyncHandler(async (req, res, next) => {
-  const skill = await Skill.findByIdAndDelete(req.params.id);
-  if (!skill) return next(new AppError('Skill not found.', 404));
-  await UserSkill.deleteMany({ skillId: skill._id });
-  await logAudit({ admin: req.user._id, action: 'delete_skill', targetType: 'skill', targetId: skill._id, targetName: skill.name, ip: getClientIp(req) });
-  res.json({ success: true, message: 'Skill and all user-skill references deleted.' });
+const deleteSkill = asyncHandler(async (req, res) => {
+  const skill = await prisma.skill.delete({ where: { id: req.params.id } }).catch((err) => { if (err.code === 'P2025') throw notFound('Skill not found.'); throw err; });
+  await logAudit(req, 'delete_skill', 'skill', skill.id, skill.name);
+  res.json({ success: true, message: 'Skill and its references deleted.' });
 });
-
-const mergeSkills = asyncHandler(async (req, res, next) => {
+const mergeSkills = asyncHandler(async (req, res) => {
   const { targetId, sourceIds } = req.body;
-  if (!targetId || !sourceIds || !Array.isArray(sourceIds) || sourceIds.length === 0) {
-    return next(new AppError('targetId and sourceIds array are required.', 400));
-  }
-
-  const target = await Skill.findById(targetId);
-  if (!target) return next(new AppError('Target skill not found.', 404));
-
-  const sources = await Skill.find({ _id: { $in: sourceIds } });
-
-  const allAliases = new Set([...(target.aliases || []), target.name]);
-  for (const src of sources) {
-    allAliases.add(src.name);
-    for (const alias of src.aliases || []) allAliases.add(alias);
-  }
-  target.aliases = [...allAliases].filter((a) => a !== target.name);
-  await target.save();
-
-  for (const srcId of sourceIds) {
-    await UserSkill.updateMany({ skillId: srcId }, { $set: { skillId: target._id } });
-  }
-
-  await Skill.deleteMany({ _id: { $in: sourceIds } });
-
-  await logAudit({
-    admin: req.user._id, action: 'merge_skills', targetType: 'skill',
-    targetId: target._id, targetName: target.name, ip: getClientIp(req),
-    metadata: { mergedCount: sources.length },
+  if (!targetId || !Array.isArray(sourceIds) || !sourceIds.length || sourceIds.includes(targetId)) throw new AppError('targetId and sourceIds array are required.', 400);
+  const target = await prisma.skill.findUnique({ where: { id: targetId } });
+  if (!target) throw notFound('Target skill not found.');
+  const sources = await prisma.skill.findMany({ where: { id: { in: sourceIds } }, include: { userSkills: true } });
+  await prisma.$transaction(async (tx) => {
+    for (const source of sources) {
+      await tx.connectionSkill.updateMany({ where: { skillId: source.id }, data: { skillId: target.id } });
+      for (const row of source.userSkills) {
+        await tx.userSkill.upsert({ where: { userId_skillId: { userId: row.userId, skillId: target.id } }, create: { userId: row.userId, skillId: target.id, level: row.level, canTeach: row.canTeach, wantToLearn: row.wantToLearn, verified: row.verified }, update: { level: Math.max(row.level, 1), canTeach: row.canTeach, wantToLearn: row.wantToLearn, verified: row.verified } });
+      }
+      const endorsements = await tx.endorsement.findMany({ where: { skillId: source.id } });
+      for (const row of endorsements) await tx.endorsement.upsert({ where: { userId_skillId_endorserId: { userId: row.userId, skillId: target.id, endorserId: row.endorserId } }, create: { userId: row.userId, skillId: target.id, endorserId: row.endorserId }, update: {} });
+      await tx.skill.delete({ where: { id: source.id } });
+    }
+    const aliases = [...new Set([...target.aliases, target.name, ...sources.flatMap((source) => [source.name, ...source.aliases])])].filter((name) => name !== target.name);
+    await tx.skill.update({ where: { id: target.id }, data: { aliases } });
   });
-
+  await logAudit(req, 'merge_skills', 'skill', target.id, target.name, { metadata: { mergedCount: sources.length } });
   res.json({ success: true, message: `Merged ${sources.length} skill(s) into ${target.name}.` });
 });
 
-// ─── Sessions ───────────────────────────────────────────────────────────────
-
 const listSessions = asyncHandler(async (req, res) => {
-  const { status, from, to, sort = '-createdAt', page = 1, limit = 20 } = req.query;
-
-  const filter = {};
-  if (status) filter.status = status;
-  if (from || to) {
-    filter.createdAt = {};
-    if (from) filter.createdAt.$gte = new Date(from);
-    if (to) filter.createdAt.$lte = new Date(to);
-  }
-
-  const pageNum = Math.max(1, parseInt(page, 10) || 1);
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
-  const skip = (pageNum - 1) * limitNum;
-
-  const [sessions, total] = await Promise.all([
-    Session.find(filter).sort(sort).skip(skip).limit(limitNum)
-      .populate('mentorId', 'name email avatar')
-      .populate('learnerId', 'name email avatar')
-      .lean(),
-    Session.countDocuments(filter),
-  ]);
-
-  res.json({
-    success: true,
-    sessions,
-    pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) },
-  });
+  const { page, limit, skip } = parsePage(req.query);
+  const where = {};
+  if (req.query.status) where.status = enumKey(req.query.status);
+  if (req.query.from || req.query.to) where.createdAt = { ...(req.query.from ? { gte: new Date(req.query.from) } : {}), ...(req.query.to ? { lte: new Date(req.query.to) } : {}) };
+  const [sessions, total] = await Promise.all([prisma.session.findMany({ where, include: { mentor: { select: { id: true, name: true, email: true, avatar: true } }, learner: { select: { id: true, name: true, email: true, avatar: true } } }, orderBy: orderFrom(req.query.sort, ['createdAt', 'date', 'status']), skip, take: limit }), prisma.session.count({ where })]);
+  res.json({ success: true, sessions: sessions.map((row) => ({ ...row, _id: row.id })), pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
 });
-
 const getSessionStats = asyncHandler(async (req, res) => {
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
-  const [statusCounts, avgDurationResult, sessionsByDay] = await Promise.all([
-    Session.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
-    Session.aggregate([
-      { $match: { status: 'completed' } },
-      { $group: { _id: null, avg: { $avg: '$duration' } } },
-    ]),
-    Session.aggregate([
-      { $match: { createdAt: { $gte: thirtyDaysAgo } } },
-      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, count: { $sum: 1 } } },
-      { $sort: { _id: 1 } },
-    ]),
-  ]);
-
-  const statusMap = {};
-  let total = 0;
-  for (const s of statusCounts) {
-    statusMap[s._id] = s.count;
-    total += s.count;
-  }
-
-  res.json({
-    success: true,
-    stats: {
-      total,
-      pending: statusMap.pending || 0,
-      confirmed: statusMap.confirmed || 0,
-      completed: statusMap.completed || 0,
-      cancelled: statusMap.cancelled || 0,
-      avgDuration: Math.round(avgDurationResult[0]?.avg || 0),
-      sessionsByDay,
-    },
-  });
+  const since = new Date(Date.now() - 30 * 86400000);
+  const [statusRows, duration, recent] = await Promise.all([prisma.session.groupBy({ by: ['status'], _count: { _all: true } }), prisma.session.aggregate({ where: { status: 'completed' }, _avg: { duration: true } }), prisma.session.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true } })]);
+  const sessionsByDay = new Map();
+  for (const row of recent) { const day = row.createdAt.toISOString().slice(0, 10); sessionsByDay.set(day, (sessionsByDay.get(day) || 0) + 1); }
+  const counts = Object.fromEntries(statusRows.map((row) => [row.status, row._count._all]));
+  res.json({ success: true, stats: { total: Object.values(counts).reduce((sum, count) => sum + count, 0), pending: counts.pending || 0, confirmed: counts.confirmed || 0, completed: counts.completed || 0, cancelled: counts.cancelled || 0, avgDuration: Math.round(duration._avg.duration || 0), sessionsByDay: [...sessionsByDay].sort(([a], [b]) => a.localeCompare(b)).map(([_id, count]) => ({ _id, count })) } });
 });
-
-// ─── Badges ─────────────────────────────────────────────────────────────────
 
 const listBadges = asyncHandler(async (req, res) => {
-  const badges = await Badge.find({}).sort({ name: 1 }).lean();
-  const enriched = await Promise.all(
-    badges.map(async (badge) => {
-      const issued = await UserBadge.countDocuments({ badgeId: badge._id });
-      return { ...badge, id: String(badge._id), issued };
-    })
-  );
-  res.json({ success: true, badges: enriched });
+  const badges = await prisma.badge.findMany({ orderBy: { name: 'asc' }, include: { _count: { select: { userBadges: true } } } });
+  res.json({ success: true, badges: badges.map(({ _count, ...badge }) => ({ ...badge, _id: badge.id, issued: _count.userBadges })) });
 });
-
-const createBadge = asyncHandler(async (req, res, next) => {
-  const { name, description, icon, points, criteria, autoGrant } = req.body;
-  if (!name || !name.trim()) return next(new AppError('Badge name is required.', 400));
-
-  const existing = await Badge.findOne({ name: new RegExp('^' + name.trim() + '$', 'i') });
-  if (existing) return next(new AppError('A badge with this name already exists.', 409));
-
-  const badge = await Badge.create({ name: name.trim(), description, icon, points, criteria, autoGrant });
-  await logAudit({ admin: req.user._id, action: 'create_badge', targetType: 'badge', targetId: badge._id, targetName: badge.name, ip: getClientIp(req) });
-  res.status(201).json({ success: true, badge });
+const createBadge = asyncHandler(async (req, res) => {
+  if (!req.body.name?.trim()) throw new AppError('Badge name is required.', 400);
+  try {
+    const badge = await prisma.badge.create({ data: { name: req.body.name.trim(), description: req.body.description || '', icon: req.body.icon || '🏅', points: Number(req.body.points) || 10, criteria: req.body.criteria || '', autoGrant: req.body.autoGrant !== false } });
+    await logAudit(req, 'create_badge', 'badge', badge.id, badge.name);
+    res.status(201).json({ success: true, badge: { ...badge, _id: badge.id } });
+  } catch (err) { if (err.code === 'P2002') throw new AppError('A badge with this name already exists.', 409); throw err; }
 });
-
-const updateBadge = asyncHandler(async (req, res, next) => {
-  const badge = await Badge.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-  if (!badge) return next(new AppError('Badge not found.', 404));
-  await logAudit({ admin: req.user._id, action: 'update_badge', targetType: 'badge', targetId: badge._id, targetName: badge.name, ip: getClientIp(req) });
-  res.json({ success: true, badge });
+const updateBadge = asyncHandler(async (req, res) => {
+  const data = {};
+  for (const key of ['name', 'description', 'icon', 'criteria', 'autoGrant']) if (req.body[key] !== undefined) data[key] = req.body[key];
+  if (req.body.points !== undefined) data.points = Number(req.body.points);
+  const updated = await prisma.badge.update({ where: { id: req.params.id }, data }).catch((err) => { if (err.code === 'P2025') throw notFound('Badge not found.'); throw err; });
+  await logAudit(req, 'update_badge', 'badge', updated.id, updated.name);
+  res.json({ success: true, badge: { ...updated, _id: updated.id } });
 });
-
-const deleteBadge = asyncHandler(async (req, res, next) => {
-  const badge = await Badge.findByIdAndDelete(req.params.id);
-  if (!badge) return next(new AppError('Badge not found.', 404));
-  await UserBadge.deleteMany({ badgeId: badge._id });
-  await logAudit({ admin: req.user._id, action: 'delete_badge', targetType: 'badge', targetId: badge._id, targetName: badge.name, ip: getClientIp(req) });
+const deleteBadge = asyncHandler(async (req, res) => {
+  const badge = await prisma.badge.delete({ where: { id: req.params.id } }).catch((err) => { if (err.code === 'P2025') throw notFound('Badge not found.'); throw err; });
+  await logAudit(req, 'delete_badge', 'badge', badge.id, badge.name);
   res.json({ success: true, message: 'Badge and all user-badge references deleted.' });
 });
 
-// ─── Certificates ───────────────────────────────────────────────────────────
-
 const listCertificates = asyncHandler(async (req, res) => {
-  const sessions = await Session.find({ status: 'completed', rating: { $gte: 4 } })
-    .populate('mentorId', 'name email')
-    .populate('learnerId', 'name email')
-    .sort({ completedAt: -1 })
-    .lean();
-
-  const certificates = sessions.map((s) => ({
-    id: String(s._id),
-    topic: s.topic,
-    date: s.completedAt || s.date,
-    rating: s.rating,
-    mentor: s.mentorId,
-    learner: s.learnerId,
-  }));
-
-  res.json({ success: true, certificates });
+  const sessions = await prisma.session.findMany({ where: { status: 'completed', rating: { gte: 4 } }, include: { mentor: { select: { id: true, name: true, email: true } }, learner: { select: { id: true, name: true, email: true } } }, orderBy: { completedAt: 'desc' } });
+  res.json({ success: true, certificates: sessions.map((row) => ({ id: row.id, topic: row.topic, date: row.completedAt || row.date, rating: row.rating, mentor: row.mentor, learner: row.learner })) });
 });
-
-// ─── Reports ────────────────────────────────────────────────────────────────
-
 const listReports = asyncHandler(async (req, res) => {
-  const { status, targetType, sort = '-createdAt', page = 1, limit = 20 } = req.query;
-
-  const filter = {};
-  if (status) filter.status = status;
-  if (targetType) filter.targetType = targetType;
-
-  const pageNum = Math.max(1, parseInt(page, 10) || 1);
-  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
-  const skip = (pageNum - 1) * limitNum;
-
-  const [reports, total] = await Promise.all([
-    Report.find(filter).sort(sort).skip(skip).limit(limitNum)
-      .populate('reporterId', 'name email')
-      .lean(),
-    Report.countDocuments(filter),
-  ]);
-
-  res.json({
-    success: true,
-    reports,
-    pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) },
-  });
+  const { page, limit, skip } = parsePage(req.query);
+  const where = {};
+  if (req.query.status) where.status = enumKey(req.query.status);
+  if (req.query.targetType) where.targetType = enumKey(req.query.targetType);
+  const [reports, total] = await Promise.all([prisma.report.findMany({ where, include: { reporter: { select: { id: true, name: true, email: true } } }, orderBy: { createdAt: 'desc' }, skip, take: limit }), prisma.report.count({ where })]);
+  res.json({ success: true, reports: reports.map((row) => ({ ...row, _id: row.id, reporterId: row.reporter })), pagination: { page, limit, total, pages: Math.ceil(total / limit) } });
 });
-
-const resolveReport = asyncHandler(async (req, res, next) => {
-  const { status, resolution } = req.body;
-  if (!['reviewed', 'resolved', 'dismissed'].includes(status)) {
-    return next(new AppError('Status must be reviewed, resolved, or dismissed.', 400));
-  }
-
-  const report = await Report.findByIdAndUpdate(
-    req.params.id,
-    { status, reviewedBy: req.user._id, reviewedAt: new Date(), resolution },
-    { new: true, runValidators: true }
-  );
-  if (!report) return next(new AppError('Report not found.', 404));
-
-  await logAudit({
-    admin: req.user._id, action: status === 'dismissed' ? 'dismiss_report' : 'resolve_report',
-    targetType: 'report', targetId: report._id, reason: resolution || '',
-    ip: getClientIp(req), previousStatus: 'pending', newStatus: status,
-  });
-
-  res.json({ success: true, report });
+const resolveReport = asyncHandler(async (req, res) => {
+  const status = enumKey(req.body.status);
+  if (!['reviewed', 'resolved', 'dismissed'].includes(status)) throw new AppError('Status must be reviewed, resolved, or dismissed.', 400);
+  const report = await prisma.report.update({ where: { id: req.params.id }, data: { status, reviewedById: actorId(req), reviewedAt: new Date(), resolution: req.body.resolution || '' } }).catch((err) => { if (err.code === 'P2025') throw notFound('Report not found.'); throw err; });
+  await logAudit(req, status === 'dismissed' ? 'dismiss_report' : 'resolve_report', 'report', report.id, '', { reason: report.resolution, previousStatus: 'pending', newStatus: status });
+  res.json({ success: true, report: { ...report, _id: report.id } });
 });
-
-// ─── AI Monitor ─────────────────────────────────────────────────────────────
 
 const getAIMonitor = asyncHandler(async (req, res) => {
-  const aiUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
   try {
-    const { default: axios } = await import('axios');
-    const { data } = await axios.get(`${aiUrl}/health`, { timeout: 5000 });
-    res.json({
-      success: true,
-      aiStatus: 'online',
-      uptime: data.uptime_seconds || 0,
-      graphNodes: data.graph_nodes || 0,
-      graphEdges: 0,
-      version: data.version || 'unknown',
-    });
-  } catch (err) {
-    res.json({
-      success: true,
-      aiStatus: 'offline',
-      uptime: 0,
-      graphNodes: 0,
-      graphEdges: 0,
-      version: null,
-      error: err.message,
-    });
-  }
+    const { data } = await axios.get(`${config.aiServiceUrl}/health`, { timeout: config.aiServiceTimeout });
+    res.json({ success: true, aiStatus: 'online', uptime: data.uptime_seconds || 0, graphNodes: data.graph_nodes || 0, graphEdges: data.graph_edges || 0, version: data.version || 'unknown' });
+  } catch (err) { res.json({ success: true, aiStatus: 'offline', uptime: 0, graphNodes: 0, graphEdges: 0, version: null, error: err.message }); }
 });
-
-// ─── System Health ──────────────────────────────────────────────────────────
-
 const getSystemHealth = asyncHandler(async (req, res) => {
-  const dbState = mongoose.connection.readyState;
-  const dbStatus = dbState === 1 ? 'connected' : 'disconnected';
-
-  const io = req.app.get('io');
-  const socketStatus = io ? 'operational' : 'unavailable';
-
-  let aiStatus = 'offline';
-  let aiData = {};
-  try {
-    const aiUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
-    const { default: axios } = await import('axios');
-    const { data } = await axios.get(`${aiUrl}/health`, { timeout: 5000 });
-    aiData = data;
-    aiStatus = 'online';
-  } catch (err) {
-    aiStatus = 'offline';
-  }
-
-  res.json({
-    success: true,
-    health: {
-      db: { status: dbStatus, readyState: dbState },
-      api: { status: 'operational' },
-      socket: { status: socketStatus },
-      ai: { status: aiStatus, ...aiData },
-      server: {
-        uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        nodeVersion: process.version,
-      },
-    },
-  });
+  let db = 'connected';
+  try { await prisma.$queryRaw`SELECT 1`; } catch { db = 'disconnected'; }
+  let ai = 'offline';
+  try { await axios.get(`${config.aiServiceUrl}/health`, { timeout: config.aiServiceTimeout }); ai = 'online'; } catch {}
+  res.json({ success: true, health: { db: { status: db }, api: { status: 'operational' }, socket: { status: req.app.get('io') ? 'operational' : 'unavailable' }, ai: { status: ai }, server: { uptime: process.uptime(), memory: process.memoryUsage(), nodeVersion: process.version } } });
 });
-
-// ─── Analytics ──────────────────────────────────────────────────────────────
-
 const getAnalytics = asyncHandler(async (req, res) => {
-  const twelveWeeksAgo = new Date(Date.now() - 12 * 7 * 24 * 60 * 60 * 1000);
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
-  const [userGrowth, sessionsByStatus, topSkills, connectionTypes, reviewRatings] = await Promise.all([
-    User.aggregate([
-      { $match: { createdAt: { $gte: twelveWeeksAgo } } },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-W%V', date: '$createdAt' } },
-          count: { $sum: 1 },
-        },
-      },
-      { $sort: { _id: 1 } },
-    ]),
-    Session.aggregate([
-      { $match: { createdAt: { $gte: thirtyDaysAgo } } },
-      { $group: { _id: '$status', count: { $sum: 1 } } },
-    ]),
-    UserSkill.aggregate([
-      { $group: { _id: '$skillId', count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 10 },
-      { $lookup: { from: 'skills', localField: '_id', foreignField: '_id', as: 'skill' } },
-      { $unwind: '$skill' },
-      { $project: { name: '$skill.name', count: 1 } },
-    ]),
-    Connection.aggregate([{ $group: { _id: '$type', count: { $sum: 1 } } }]),
-    Review.aggregate([
-      { $match: { createdAt: { $gte: thirtyDaysAgo } } },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          avgRating: { $avg: '$rating' },
-          count: { $sum: 1 },
-        },
-      },
-      { $sort: { _id: 1 } },
-    ]),
+  const since = new Date(Date.now() - 30 * 86400000);
+  const twelveWeeksAgo = new Date(Date.now() - 84 * 86400000);
+  const [users, sessionsByStatus, skillRows, connectionTypes, reviews] = await Promise.all([
+    prisma.user.findMany({ where: { createdAt: { gte: twelveWeeksAgo } }, select: { createdAt: true } }),
+    prisma.session.groupBy({ by: ['status'], where: { createdAt: { gte: since } }, _count: { _all: true } }),
+    prisma.userSkill.groupBy({ by: ['skillId'], _count: { _all: true }, orderBy: { _count: { skillId: 'desc' } }, take: 10 }),
+    prisma.connection.groupBy({ by: ['type'], _count: { _all: true } }),
+    prisma.review.findMany({ where: { createdAt: { gte: since } }, select: { createdAt: true, rating: true } }),
   ]);
-
-  res.json({
-    success: true,
-    analytics: {
-      userGrowth,
-      sessionsByStatus,
-      topSkills,
-      connectionTypes,
-      reviewRatings,
-    },
-  });
+  const skills = await prisma.skill.findMany({ where: { id: { in: skillRows.map((row) => row.skillId) } }, select: { id: true, name: true } });
+  const groupCounts = (rows, key) => Object.fromEntries(rows.map((row) => [row[key], row._count._all]));
+  const weekly = new Map();
+  for (const row of users) { const date = new Date(row.createdAt); const monday = new Date(date); monday.setDate(date.getDate() - ((date.getDay() + 6) % 7)); const key = monday.toISOString().slice(0, 10); weekly.set(key, (weekly.get(key) || 0) + 1); }
+  const dailyReviews = new Map();
+  for (const row of reviews) { const key = row.createdAt.toISOString().slice(0, 10); const value = dailyReviews.get(key) || { sum: 0, count: 0 }; value.sum += row.rating; value.count += 1; dailyReviews.set(key, value); }
+  res.json({ success: true, analytics: {
+    userGrowth: [...weekly].sort(([a], [b]) => a.localeCompare(b)).map(([_id, count]) => ({ _id, count })),
+    sessionsByStatus: Object.entries(groupCounts(sessionsByStatus, 'status')).map(([_id, count]) => ({ _id, count })),
+    topSkills: skillRows.map((row) => ({ _id: row.skillId, name: skills.find((skill) => skill.id === row.skillId)?.name || '', count: row._count._all })),
+    connectionTypes: connectionTypes.map((row) => ({ _id: row.type, count: row._count._all })),
+    reviewRatings: [...dailyReviews].sort(([a], [b]) => a.localeCompare(b)).map(([_id, value]) => ({ _id, avgRating: value.sum / value.count, count: value.count })),
+  } });
 });
 
-module.exports = {
-  getDashboard, listUsers, getUser, updateUser, verifyUser, suspendUser,
-  softDeleteUser, permanentDeleteUser, reactivateUser, banUser,
-  listAuditLogs,
-  listInstitutions, createInstitution, updateInstitution, deleteInstitution, mergeInstitutions,
-  listSkills, createSkill, updateSkill, deleteSkill, mergeSkills,
-  listSessions, getSessionStats,
-  listBadges, createBadge, updateBadge, deleteBadge,
-  listCertificates,
-  listReports, resolveReport,
-  getAIMonitor, getSystemHealth, getAnalytics,
-};
+module.exports = { getDashboard, listUsers, getUser, updateUser, verifyUser, suspendUser, softDeleteUser, permanentDeleteUser, reactivateUser, banUser, listAuditLogs, listInstitutions, createInstitution, updateInstitution, deleteInstitution, mergeInstitutions, listSkills, createSkill, updateSkill, deleteSkill, mergeSkills, listSessions, getSessionStats, listBadges, createBadge, updateBadge, deleteBadge, listCertificates, listReports, resolveReport, getAIMonitor, getSystemHealth, getAnalytics };

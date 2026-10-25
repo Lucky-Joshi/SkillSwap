@@ -1,24 +1,23 @@
-const User = require('../models/User');
-const UserSkill = require('../models/UserSkill');
-const Connection = require('../models/Connection');
-const Session = require('../models/Session');
-const Message = require('../models/Message');
-const Review = require('../models/Review');
-const Notification = require('../models/Notification');
-const UserBadge = require('../models/UserBadge');
+const prisma = require('../lib/prisma');
 const AppError = require('../utils/AppError');
 
 /** Remove every document that references a user (both sides of a relationship). */
 const deleteUserData = async (userId) => {
   const id = String(userId);
-  await Promise.all([
-    UserSkill.deleteMany({ userId: id }),
-    Connection.deleteMany({ $or: [{ userA: id }, { userB: id }] }),
-    Session.deleteMany({ $or: [{ mentorId: id }, { learnerId: id }] }),
-    Message.deleteMany({ $or: [{ sender: id }, { receiver: id }] }),
-    Review.deleteMany({ $or: [{ mentor: id }, { learner: id }] }),
-    Notification.deleteMany({ userId: id }),
-    UserBadge.deleteMany({ userId: id }),
+  await prisma.$transaction([
+    prisma.user.updateMany({ where: { verifiedById: id }, data: { verifiedById: null } }),
+    prisma.user.updateMany({ where: { suspendedById: id }, data: { suspendedById: null } }),
+    prisma.user.updateMany({ where: { bannedById: id }, data: { bannedById: null } }),
+    prisma.user.updateMany({ where: { deletedById: id }, data: { deletedById: null } }),
+    prisma.report.updateMany({ where: { reviewedById: id }, data: { reviewedById: null } }),
+    prisma.userSkill.deleteMany({ where: { userId: id } }),
+    prisma.connection.deleteMany({ where: { OR: [{ userAId: id }, { userBId: id }, { requestedById: id }] } }),
+    prisma.session.deleteMany({ where: { OR: [{ mentorId: id }, { learnerId: id }, { cancelledById: id }] } }),
+    prisma.message.deleteMany({ where: { OR: [{ senderId: id }, { receiverId: id }] } }),
+    prisma.review.deleteMany({ where: { OR: [{ mentorId: id }, { learnerId: id }] } }),
+    prisma.notification.deleteMany({ where: { userId: id } }),
+    prisma.userBadge.deleteMany({ where: { userId: id } }),
+    prisma.endorsement.deleteMany({ where: { OR: [{ userId: id }, { endorserId: id }] } }),
   ]);
 };
 
@@ -27,12 +26,12 @@ const deleteUserData = async (userId) => {
  * Admin accounts are protected from deletion.
  */
 const deleteUser = async (userId) => {
-  const user = await User.findById(userId);
+  const user = await prisma.user.findUnique({ where: { id: String(userId) } });
   if (!user) throw new AppError('User not found.', 404);
-  if (user.role === 'admin') throw new AppError('Admin accounts cannot be deleted.', 400);
+  if (['admin', 'super_admin'].includes(user.role)) throw new AppError('Admin accounts cannot be deleted.', 400);
 
-  await deleteUserData(user._id);
-  await User.findByIdAndDelete(user._id);
+  await deleteUserData(user.id);
+  await prisma.user.delete({ where: { id: user.id } });
   return user;
 };
 

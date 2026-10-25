@@ -18,9 +18,9 @@ router.use(protect);
 router.get('/history', getMatchHistory);
 router.get('/requests', getPendingRequests);
 router.get('/relationships', getRelationships);
-router.post('/request', [body('userId').isMongoId(), body('mode').optional().isIn(['mentors', 'learners', 'peer']), body('type').optional().isIn(['mentorship', 'peer'])], validate, requestMatch);
-router.post('/accept', [body('matchId').isMongoId()], validate, acceptMatch);
-router.post('/reject', [body('matchId').isMongoId()], validate, rejectMatch);
-router.post('/cancel', [body('matchId').isMongoId()], validate, cancelMatch);
+router.post('/request', [body('userId').matches(/^[A-Za-z0-9_-]{8,64}$/), body('mode').optional().isIn(['mentors', 'learners', 'peer']), body('type').optional().isIn(['mentorship', 'peer'])], validate, requestMatch);
+router.post('/accept', [body('matchId').matches(/^[A-Za-z0-9_-]{8,64}$/)], validate, acceptMatch);
+router.post('/reject', [body('matchId').matches(/^[A-Za-z0-9_-]{8,64}$/)], validate, rejectMatch);
+router.post('/cancel', [body('matchId').matches(/^[A-Za-z0-9_-]{8,64}$/)], validate, cancelMatch);
 
 module.exports = router;

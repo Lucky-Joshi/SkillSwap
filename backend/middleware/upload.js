@@ -5,6 +5,7 @@ const AppError = require('../utils/AppError');
 const config = require('../config/env');
 
 fs.mkdirSync(config.uploadDir, { recursive: true });
+fs.mkdirSync(config.resumeDir, { recursive: true, mode: 0o700 });
 
 const storage = multer.diskStorage({
   destination(req, file, cb) {
@@ -33,7 +34,13 @@ const uploadImage = multer({
 });
 
 const uploadResume = multer({
-  storage,
+  storage: multer.diskStorage({
+    destination(req, file, cb) { cb(null, config.resumeDir); },
+    filename(req, file, cb) {
+      const ext = path.extname(file.originalname).toLowerCase();
+      cb(null, `resume-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+    },
+  }),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: fileFilter(['.pdf', '.docx', '.txt']),
 });

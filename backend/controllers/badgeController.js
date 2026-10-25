@@ -1,34 +1,36 @@
-const Badge = require('../models/Badge');
-const UserBadge = require('../models/UserBadge');
+const prisma = require('../lib/prisma');
 const asyncHandler = require('../utils/asyncHandler');
 
-// @route  GET /api/badges
-// @access private
 const getAllBadges = asyncHandler(async (req, res) => {
-  const badges = await Badge.find({}).sort({ points: 1 });
-  const earned = await UserBadge.find({ userId: req.user._id }).select('badgeId earnedAt');
-  const earnedSet = new Map(earned.map((e) => [String(e.badgeId), e.earnedAt]));
-
-  const data = badges.map((b) => ({
-    id: b._id,
-    name: b.name,
-    description: b.description,
-    icon: b.icon,
-    points: b.points,
-    earned: earnedSet.has(String(b._id)),
-    earnedAt: earnedSet.get(String(b._id)) || null,
-  }));
-
-  res.json({ success: true, badges: data });
+  const [badges, earned] = await Promise.all([
+    prisma.badge.findMany({ orderBy: { points: 'asc' } }),
+    prisma.userBadge.findMany({
+      where: { userId: req.user.id },
+      select: { badgeId: true, earnedAt: true },
+    }),
+  ]);
+  const earnedMap = new Map(earned.map(({ badgeId, earnedAt }) => [badgeId, earnedAt]));
+  res.json({
+    success: true,
+    badges: badges.map((badge) => ({
+      ...badge,
+      _id: badge.id,
+      earned: earnedMap.has(badge.id),
+      earnedAt: earnedMap.get(badge.id) || null,
+    })),
+  });
 });
 
-// @route  GET /api/badges/mine
-// @access private
 const getMyBadges = asyncHandler(async (req, res) => {
-  const earned = await UserBadge.find({ userId: req.user._id })
-    .populate('badgeId')
-    .sort({ earnedAt: -1 });
-  res.json({ success: true, badges: earned });
+  const earned = await prisma.userBadge.findMany({
+    where: { userId: req.user.id },
+    include: { badge: true },
+    orderBy: { earnedAt: 'desc' },
+  });
+  res.json({
+    success: true,
+    badges: earned.map((row) => ({ ...row, _id: row.id, badgeId: { ...row.badge, _id: row.badge.id } })),
+  });
 });
 
 module.exports = { getAllBadges, getMyBadges };

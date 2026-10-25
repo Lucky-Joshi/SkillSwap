@@ -1,6 +1,6 @@
 const { verifyToken } = require('../utils/token');
 const { AuthenticationError, AuthorizationError } = require('../utils/errors');
-const User = require('../models/User');
+const prisma = require('../lib/prisma');
 const asyncHandler = require('../utils/asyncHandler');
 
 const BLOCKED_STATUSES = ['suspended', 'deleted', 'banned'];
@@ -24,7 +24,17 @@ const protect = asyncHandler(async (req, res, next) => {
     throw new AuthenticationError('Session expired or invalid. Please log in again.');
   }
 
-  const user = await User.findById(decoded.id).select('_id name email role avatar status isVerified isSuspended');
+  const user = await prisma.user.findUnique({
+    where: { id: decoded.id },
+    select: {
+      id: true, name: true, email: true, role: true, avatar: true, status: true, isVerified: true,
+      bio: true, college: true, department: true, year: true, points: true, rating: true,
+      reviewCount: true, sessionsCompleted: true, hoursLearned: true, hoursTaught: true,
+      learningStreak: true, teachingStreak: true, learnedSkills: true,
+      privacy: true,
+      profileVisibility: true,
+    },
+  });
   if (!user) {
     throw new AuthenticationError('The user belonging to this token no longer exists.');
   }
@@ -38,7 +48,7 @@ const protect = asyncHandler(async (req, res, next) => {
     throw new AuthenticationError(messages[user.status] || 'Your account is restricted.');
   }
 
-  req.user = user;
+  req.user = { ...user, _id: user.id };
   next();
 });
 

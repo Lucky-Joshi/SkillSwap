@@ -35,6 +35,7 @@ router.put(
     body('teachingPhilosophy').optional().trim().isLength({ max: 500 }),
     body('learningGoals').optional().trim().isLength({ max: 500 }),
     body('year').optional().isIn(['1', '2', '3', '4', '5', 'Graduate', '']),
+    body('qualification').optional().isIn(['10th Grade', '12th Grade', 'Diploma', 'B.Tech', 'B.E', 'B.Sc', 'BCA', 'MCA', 'M.Tech', 'M.Sc', 'BBA', 'MBA', 'BA', 'MA', 'Ph.D', 'Other', '']),
     body('availability').optional().isIn(['weekdays', 'weekends', 'evenings', 'mornings', 'anytime', '']),
     body('preferredLearningStyle').optional().isIn(['visual', 'auditory', 'reading', 'kinesthetic', 'mixed', '']),
     body('github').optional().isURL({ require_protocol: false }).withMessage('Invalid GitHub URL'),
@@ -56,7 +57,7 @@ router.post('/resume', resumeUpload.single('resume'), uploadResume);
 router.post(
   '/skills',
   [
-    body('skillId').optional().isMongoId(),
+    body('skillId').optional().matches(/^[A-Za-z0-9_-]{8,64}$/),
     body('skillName').optional().trim(),
     body('level').optional().isInt({ min: 1, max: 5 }),
     body('canTeach').optional().isBoolean(),

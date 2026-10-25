@@ -1,6 +1,4 @@
-const Skill = require('../models/Skill');
-const Badge = require('../models/Badge');
-const Institution = require('../models/Institution');
+const prisma = require('../lib/prisma');
 
 const SKILLS = [
   ['Python', ['python3', 'py'], 'programming', 'beginner', '🐍'],
@@ -140,39 +138,29 @@ const INSTITUTIONS = [
 ];
 
 const seedSkills = async () => {
-  const ops = SKILLS.map(([name, aliases, category, difficulty, icon]) => ({
-    updateOne: {
-      filter: { name },
-      update: { $setOnInsert: { name, aliases, category, difficulty, icon } },
-      upsert: true,
-    },
-  }));
-  const result = await Skill.bulkWrite(ops);
-  return result.upsertedCount + result.modifiedCount;
+  const result = await prisma.skill.createMany({
+    data: SKILLS.map(([name, aliases, category, difficulty, icon]) => ({
+      name, aliases, category: category.replaceAll('-', '_'), difficulty, icon,
+    })),
+    skipDuplicates: true,
+  });
+  return result.count;
 };
 
 const seedBadges = async () => {
-  const ops = BADGES.map(([name, description, icon, points, criteria, autoGrant]) => ({
-    updateOne: {
-      filter: { name },
-      update: { $setOnInsert: { name, description, icon, points, criteria, autoGrant } },
-      upsert: true,
-    },
-  }));
-  const result = await Badge.bulkWrite(ops);
-  return result.upsertedCount + result.modifiedCount;
+  const result = await prisma.badge.createMany({
+    data: BADGES.map(([name, description, icon, points, criteria, autoGrant]) => ({ name, description, icon, points, criteria, autoGrant })),
+    skipDuplicates: true,
+  });
+  return result.count;
 };
 
 const seedInstitutions = async () => {
-  const ops = INSTITUTIONS.map(([name, city, country, type]) => ({
-    updateOne: {
-      filter: { name },
-      update: { $setOnInsert: { name, city, country, type } },
-      upsert: true,
-    },
-  }));
-  const result = await Institution.bulkWrite(ops);
-  return result.upsertedCount + result.modifiedCount;
+  const result = await prisma.institution.createMany({
+    data: INSTITUTIONS.map(([name, city, country, type]) => ({ name, city, country, type })),
+    skipDuplicates: true,
+  });
+  return result.count;
 };
 
 module.exports = { SKILLS, BADGES, INSTITUTIONS, seedSkills, seedBadges, seedInstitutions };

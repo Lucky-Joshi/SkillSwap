@@ -1,17 +1,22 @@
-const Institution = require('../models/Institution');
+const prisma = require('../lib/prisma');
 const asyncHandler = require('../utils/asyncHandler');
 
-// @route  GET /api/institutions
-// @access public — used by the signup form (datalist) and profile editor.
 const getInstitutions = asyncHandler(async (req, res) => {
-  const { q } = req.query;
-  const filter = {};
-  if (q && q.trim()) {
-    const rx = new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    filter.$or = [{ name: rx }, { city: rx }, { country: rx }];
-  }
-  const institutions = await Institution.find(filter).sort({ name: 1 }).limit(200).lean();
-  res.json({ success: true, institutions });
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  const institutions = await prisma.institution.findMany({
+    where: q
+      ? {
+          OR: [
+            { name: { contains: q, mode: 'insensitive' } },
+            { city: { contains: q, mode: 'insensitive' } },
+            { country: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : undefined,
+    orderBy: { name: 'asc' },
+    take: 200,
+  });
+  res.json({ success: true, institutions: institutions.map((row) => ({ ...row, _id: row.id })) });
 });
 
 module.exports = { getInstitutions };

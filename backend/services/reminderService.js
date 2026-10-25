@@ -1,4 +1,4 @@
-const Session = require('../models/Session');
+const prisma = require('../lib/prisma');
 const { notify } = require('./notificationService');
 const { effectiveStart } = require('./sessionService');
 
@@ -11,7 +11,7 @@ const sendSessionReminders = async ({ withinMs = 60 * 60 * 1000, toleranceMs = 2
   const windowStart = now - toleranceMs;
   const windowEnd = now + withinMs;
 
-  const sessions = await Session.find({
+  const sessions = await prisma.session.findMany({
     status: 'confirmed',
     reminderSent: false,
   });
@@ -28,28 +28,30 @@ const sendSessionReminders = async ({ withinMs = 60 * 60 * 1000, toleranceMs = 2
         type: 'reminder',
         title: 'Session reminder ⏰',
         message: `"${session.topic}" starts at ${session.startTime}.`,
-        data: { sessionId: session._id },
+        data: { sessionId: session.id },
       });
       await notify({
         userId: session.learnerId,
         type: 'reminder',
         title: 'Session reminder ⏰',
         message: `"${session.topic}" starts at ${session.startTime}.`,
-        data: { sessionId: session._id },
+        data: { sessionId: session.id },
       });
-      session.reminderSent = true;
-      await session.save();
+      await prisma.session.update({ where: { id: session.id }, data: { reminderSent: true } });
     } catch (err) {
-      console.warn(`[reminder] failed for session ${session._id}: ${err.message}`);
+      console.warn(`[reminder] failed for session ${session.id}: ${err.message}`);
     }
   }
 
   return due.length;
 };
 
-const startReminderScheduler = () =>
-  setInterval(() => {
+const startReminderScheduler = () => {
+  const timer = setInterval(() => {
     sendSessionReminders().catch((err) => console.warn('[reminder] scheduler error:', err.message));
   }, 60 * 1000);
+  timer.unref();
+  return timer;
+};
 
 module.exports = { sendSessionReminders, startReminderScheduler };

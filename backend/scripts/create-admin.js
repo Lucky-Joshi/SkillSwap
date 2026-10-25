@@ -2,10 +2,8 @@
 /* eslint-disable no-console */
 
 require('dotenv').config();
-const mongoose = require('mongoose');
-const User = require('../models/User');
-
-const MONGO = process.env.MONGO_URI || 'mongodb://localhost:27017/skillswap';
+const prisma = require('../lib/prisma');
+const bcrypt = require('bcryptjs');
 
 function getArg(name) {
   const idx = process.argv.indexOf(`--${name}`);
@@ -27,40 +25,42 @@ async function run() {
     process.exit(1);
   }
 
-  await mongoose.connect(MONGO);
-  console.log('Connected to MongoDB.');
+  await prisma.$connect();
+  console.log('Connected to Supabase Postgres.');
 
-  const existing = await User.findOne({ email });
+  const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    if (existing.role === 'admin') {
+    if (existing.role === 'admin' || existing.role === 'super_admin') {
       console.log(`"${email}" is already an admin.`);
     } else {
-      existing.role = 'admin';
-      await existing.save();
+      await prisma.user.update({ where: { id: existing.id }, data: { role: 'admin' } });
       console.log(`Promoted "${email}" to admin.`);
     }
-    await mongoose.disconnect();
+    await prisma.$disconnect();
     return;
   }
 
-  const admin = await User.create({
+  const admin = await prisma.user.create({
+    data: {
     name,
     email,
-    password,
+    password: await bcrypt.hash(password, 12),
     role: 'admin',
     isVerified: true,
     college: 'Platform Administration',
-    qualification: 'Other',
+    qualification: 'other',
     department: 'Administration',
-    year: 'Graduate',
+    year: 'graduate',
     trustScore: 100,
+    status: 'verified',
+    },
   });
 
   console.log(`Admin account created: ${admin.email}`);
-  await mongoose.disconnect();
+  await prisma.$disconnect();
 }
 
 run().catch((err) => {
   console.error('Failed:', err.message);
-  process.exit(1);
+  prisma.$disconnect().finally(() => process.exit(1));
 });

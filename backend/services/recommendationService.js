@@ -1,5 +1,4 @@
-const Skill = require('../models/Skill');
-const UserSkill = require('../models/UserSkill');
+const prisma = require('../lib/prisma');
 
 /**
  * Heuristic recommendation engine.
@@ -18,7 +17,7 @@ const SKILL_ALIASES = {};
 
 const loadSkillMap = async () => {
   if (Object.keys(SKILL_ALIASES).length) return SKILL_ALIASES;
-  const skills = await Skill.find({});
+  const skills = await prisma.skill.findMany({ select: { name: true, aliases: true } });
   skills.forEach((s) => {
     SKILL_ALIASES[s.name.toLowerCase()] = s.name.toLowerCase();
     (s.aliases || []).forEach((a) => {

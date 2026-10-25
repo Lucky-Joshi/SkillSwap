@@ -1,5 +1,5 @@
 const express = require('express');
-const { body } = require('express-validator');
+const { body, query } = require('express-validator');
 const {
   register,
   login,
@@ -8,7 +8,7 @@ const {
   resendVerification,
   forgotPassword,
   resetPassword,
-} = require('../controllers/authController');
+} = require('../controllers/prisma/authControllerPrisma');
 const { protect } = require('../middleware/auth');
 const validate = require('../middleware/validate');
 
@@ -40,9 +40,9 @@ router.post(
 
 router.post('/login', [emailRule(), passwordRule('password')], validate, login);
 router.get('/me', protect, me);
-router.get('/verify-email', [body().optional()], verifyEmail);
+router.get('/verify-email', [query('token').isHexadecimal().isLength({ min: 64, max: 64 })], validate, verifyEmail);
 router.post('/resend-verification', [emailRule()], validate, resendVerification);
 router.post('/forgot-password', [emailRule()], validate, forgotPassword);
-router.post('/reset-password', [body('token').notEmpty(), passwordRule('password')], validate, resetPassword);
+router.post('/reset-password', [body('token').isHexadecimal().isLength({ min: 64, max: 64 }), passwordRule('password')], validate, resetPassword);
 
 module.exports = router;

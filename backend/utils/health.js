@@ -1,7 +1,6 @@
 const os = require('os');
-const mongoose = require('mongoose');
+const prisma = require('../lib/prisma');
 const config = require('../config/env');
-const logger = require('../utils/logger');
 
 const startTime = Date.now();
 
@@ -15,17 +14,15 @@ const checkHealth = async () => {
     checks: {},
   };
 
-  // MongoDB check
+  // Supabase Postgres check
   try {
-    const mongoState = mongoose.connection.readyState;
-    const mongoLabels = ['disconnected', 'connected', 'connecting', 'disconnecting'];
+    await prisma.$queryRaw`SELECT 1`;
     checks.checks.database = {
-      status: mongoState === 1 ? 'healthy' : 'unhealthy',
-      state: mongoLabels[mongoState] || 'unknown',
-      host: mongoose.connection.host || 'N/A',
+      status: 'healthy',
+      provider: 'supabase-postgres',
     };
-  } catch (err) {
-    checks.checks.database = { status: 'unhealthy', error: err.message };
+  } catch {
+    checks.checks.database = { status: 'unhealthy' };
   }
 
   // AI Service check
@@ -36,11 +33,9 @@ const checkHealth = async () => {
       status: response.status === 200 ? 'healthy' : 'degraded',
       url: config.aiServiceUrl,
     };
-  } catch (err) {
+  } catch {
     checks.checks.aiService = {
       status: 'unavailable',
-      url: config.aiServiceUrl,
-      error: err.message,
     };
   }
 

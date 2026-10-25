@@ -112,8 +112,8 @@ function ArchitectureDiagram() {
 └──────┬──────────────┬───────────┘
        │              │
 ┌──────▼──────┐ ┌─────▼──────────────┐
-│  MongoDB 7  │ │  FastAPI AI Service │
-│ (Mongoose)  │ │  SBERT · TF-IDF     │
+│ Supabase PG │ │  FastAPI AI Service │
+│  (Prisma)   │ │  SBERT · TF-IDF     │
 └─────────────┘ │  NetworkX · spaCy   │
                 └─────────────────────}`}
         </pre>

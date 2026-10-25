@@ -23,6 +23,6 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
     );
   }
   if (BLOCKED_STATUSES.includes(user.status)) return <Navigate to={ROUTES.LOGIN} replace />;
-  if (adminOnly && user.role !== 'admin' && user.role !== 'super-admin') return <Navigate to={ROUTES.DASHBOARD} replace />;
+  if (adminOnly && user.role !== 'admin' && user.role !== 'super_admin') return <Navigate to={ROUTES.DASHBOARD} replace />;
   return children;
 }

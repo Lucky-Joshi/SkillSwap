@@ -7,19 +7,18 @@ Three deployable artifacts:
 | `frontend` | React + Vite (static SPA) | 5173 (dev) | `frontend/dist` |
 | `backend` | Node + Express + Socket.IO | 5000 | Docker image |
 | `ai-service` | Python FastAPI | 8000 | Docker image |
-| `mongodb` | MongoDB 7 | 27017 | Docker volume |
+| `supabase` | Supabase Postgres | 5432 | Managed database |
 
 ---
 
 ## Option A — Docker Compose (local, everything at once)
 
 ```bash
-docker compose up --build
+docker compose --env-file backend/.env up --build
 ```
 
-- `mongodb` — `mongo:7`, named volume `mongo_data`, port `27017`.
 - `backend` — built from `backend/Dockerfile` (`node:20-alpine`), depends on
-  mongo + ai-service, env: `MONGO_URI=mongodb://mongodb:27017/skillswap`,
+  ai-service and uses the Supabase connection variables from the root `.env`,
   `AI_SERVICE_URL=http://ai-service:8000`, `CLIENT_URL=http://localhost:5173`.
 - `ai-service` — built from `ai-service/Dockerfile` (`python:3.11-slim`), port `8000`.
 
@@ -96,21 +95,25 @@ npm run build               # production bundle in dist/
 
 - Two services, one per Dockerfile.
 - **Backend env**:
-  - `MONGO_URI` → MongoDB Atlas connection string
-  - `JWT_SECRET` → strong random value
+  - `DATABASE_URL` → Supabase Postgres runtime connection string
+  - `DIRECT_URL` → Supabase Postgres migration connection string
+  - `JWT_SECRET` → unique random value, at least 32 characters
+  - `EMAIL_FROM` and `RESEND_API_KEY` → verified Resend sender and server-side API key
+  - `EMAIL_VERIFY_BASE_URL` → HTTPS frontend verification route
   - `AI_SERVICE_URL` → internal URL of the deployed AI service
   - `CLIENT_URL` → frontend URL (CORS + Socket.IO origin)
-  - `UPLOAD_DIR`, `EMAIL_VERIFY_BASE_URL`
+  - `UPLOAD_DIR` → persistent profile image directory
+  - `RESUME_DIR` → private temporary resume staging directory
   - `CORS_ORIGINS` → comma-separated allowed origins (defaults to `CLIENT_URL`)
   - `LOG_LEVEL` → `info` or `warn` in production
 - **AI service**: just set the port (8000). Keep it reachable only by the backend
   (private network / firewall) — it has no auth of its own.
-- Enable health checks on `/api/health` (backend) and `/health` (AI service).
+- Enable health checks on `/api/health/health` (backend) and `/health` (AI service).
 
-### Database → MongoDB Atlas
+### Database → Supabase Postgres
 
-- Create a cluster, allow-list deployment IPs, enable TLS (default).
-- Put the SRV connection string in `MONGO_URI`.
+- Use TLS for Postgres and URL-encode special characters in the database password.
+- Apply migrations with `npm run prisma:migrate:deploy` from `backend/` before starting the API.
 - Run core data seeder to populate skills, badges, and institutions: `npm run seed` with the production env.
 - Create admin accounts: `node scripts/create-admin.js --name "Admin" --email admin@skillswap.io --password <strong-password>`
 
@@ -143,8 +146,11 @@ npm run build               # production bundle in dist/
 |----------|---------|---------|-------|
 | `NODE_ENV` | backend | `development` | `production` hides stack traces |
 | `PORT` | backend | `5000` | |
-| `MONGO_URI` | backend | `mongodb://localhost:27017/skillswap` | Atlas in prod |
+| `DATABASE_URL` | backend | none | Supabase Postgres runtime URL |
+| `DIRECT_URL` | backend | none | Supabase Postgres migration URL |
 | `JWT_SECRET` | backend | dev secret | **must** change in prod |
+| `EMAIL_FROM` | backend | none | Verified sender address |
+| `RESEND_API_KEY` | backend | none | Secret email provider key |
 | `JWT_EXPIRES_IN` | backend | `7d` | |
 | `AI_SERVICE_URL` | backend | `http://localhost:8000` | |
 | `AI_SERVICE_TIMEOUT` | backend | `4000` | ms |
@@ -152,7 +158,9 @@ npm run build               # production bundle in dist/
 | `CORS_ORIGINS` | backend | `CLIENT_URL` | comma-separated allowed origins |
 | `UPLOAD_DIR` | backend | `uploads` | |
 | `EMAIL_VERIFY_BASE_URL` | backend | `http://localhost:5173/verify-email` | |
-| `EMAIL_FROM` | backend | `noreply@skillswap.io` | |
+| `EMAIL_VERIFY_BASE_URL` | backend | localhost verification route | HTTPS in production |
+| `RESUME_DIR` | backend | OS temporary directory | Never serve this directory publicly |
+| `TRUST_PROXY` | backend | `false` | Set to `true` behind a trusted single proxy |
 | `LOG_LEVEL` | backend | `debug` | `info`/`warn`/`error` in prod |
 | `RATE_LIMIT_GLOBAL` | backend | `500` | per 15 min window |
 | `RATE_LIMIT_AUTH` | backend | `30` | per 15 min window |

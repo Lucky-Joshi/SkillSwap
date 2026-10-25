@@ -15,7 +15,7 @@ const {
 
 const router = express.Router();
 
-router.use(protect, restrictTo('admin', 'super-admin'));
+router.use(protect, restrictTo('admin', 'super_admin'));
 
 router.get('/dashboard', getDashboard);
 

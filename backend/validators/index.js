@@ -40,7 +40,7 @@ const userValidation = {
     body('availability').optional().isIn(['full', 'part', 'weekends', 'evenings']),
   ],
   getUser: [
-    param('id').isMongoId().withMessage('Invalid user ID'),
+    param('id').matches(/^[A-Za-z0-9_-]{8,64}$/).withMessage('Invalid user ID'),
   ],
   searchUsers: [
     query('q').optional().trim().isLength({ max: 100 }),
@@ -50,8 +50,8 @@ const userValidation = {
     query('sort').optional().isIn(['name', '-name', 'rating', '-rating', 'points', '-points']),
   ],
   endorseSkill: [
-    param('id').isMongoId().withMessage('Invalid user ID'),
-    body('skillId').isMongoId().withMessage('Invalid skill ID'),
+    param('id').matches(/^[A-Za-z0-9_-]{8,64}$/).withMessage('Invalid user ID'),
+    body('skillId').matches(/^[A-Za-z0-9_-]{8,64}$/).withMessage('Invalid skill ID'),
   ],
   addSkill: [
     body('name').trim().notEmpty().withMessage('Skill name is required'),
@@ -63,8 +63,8 @@ const userValidation = {
 
 const sessionValidation = {
   create: [
-    body('mentorId').isMongoId().withMessage('Invalid mentor ID'),
-    body('learnerId').isMongoId().withMessage('Invalid learner ID'),
+    body('mentorId').matches(/^[A-Za-z0-9_-]{8,64}$/).withMessage('Invalid mentor ID'),
+    body('learnerId').matches(/^[A-Za-z0-9_-]{8,64}$/).withMessage('Invalid learner ID'),
     body('topic').trim().notEmpty().withMessage('Topic is required').isLength({ max: 200 }),
     body('date').isISO8601().withMessage('Valid date is required'),
     body('startTime').matches(/^\d{2}:\d{2}$/).withMessage('Start time must be HH:MM'),
@@ -84,7 +84,7 @@ const sessionValidation = {
     query('limit').optional().isInt({ min: 1, max: 100 }),
   ],
   update: [
-    param('id').isMongoId().withMessage('Invalid session ID'),
+    param('id').matches(/^[A-Za-z0-9_-]{8,64}$/).withMessage('Invalid session ID'),
     body('status').optional().isIn(['pending', 'confirmed', 'completed', 'cancelled']),
     body('topic').optional().trim().isLength({ min: 1, max: 200 }),
   ],
@@ -92,21 +92,21 @@ const sessionValidation = {
 
 const connectionValidation = {
   request: [
-    body('userId').isMongoId().withMessage('Invalid user ID'),
+    body('userId').matches(/^[A-Za-z0-9_-]{8,64}$/).withMessage('Invalid user ID'),
     body('type').optional().isIn(['mentorship', 'peer']),
     body('skills').optional().isArray(),
   ],
   accept: [
-    param('id').isMongoId().withMessage('Invalid connection ID'),
+    param('id').matches(/^[A-Za-z0-9_-]{8,64}$/).withMessage('Invalid connection ID'),
   ],
   reject: [
-    param('id').isMongoId().withMessage('Invalid connection ID'),
+    param('id').matches(/^[A-Za-z0-9_-]{8,64}$/).withMessage('Invalid connection ID'),
   ],
 };
 
 const messageValidation = {
   send: [
-    body('receiverId').isMongoId().withMessage('Invalid receiver ID'),
+    body('receiverId').matches(/^[A-Za-z0-9_-]{8,64}$/).withMessage('Invalid receiver ID'),
     body('message').trim().notEmpty().withMessage('Message is required').isLength({ max: 5000 }),
   ],
   getMessages: [
@@ -118,7 +118,7 @@ const messageValidation = {
 
 const reviewValidation = {
   create: [
-    body('sessionId').isMongoId().withMessage('Invalid session ID'),
+    body('sessionId').matches(/^[A-Za-z0-9_-]{8,64}$/).withMessage('Invalid session ID'),
     body('rating').isInt({ min: 1, max: 5 }).withMessage('Rating must be 1-5'),
     body('feedback').optional().trim().isLength({ max: 1000 }),
   ],
@@ -141,7 +141,7 @@ const adminValidation = {
     query('q').optional().trim().isLength({ max: 100 }),
   ],
   deleteSingleUser: [
-    param('id').isMongoId().withMessage('Invalid user ID'),
+    param('id').matches(/^[A-Za-z0-9_-]{8,64}$/).withMessage('Invalid user ID'),
   ],
 };
 

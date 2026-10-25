@@ -2,10 +2,8 @@
 /* eslint-disable no-console */
 
 require('dotenv').config();
-const mongoose = require('mongoose');
+const prisma = require('../lib/prisma');
 const { seedSkills, seedBadges, seedInstitutions } = require('../services/seedService');
-
-const MONGO = process.env.MONGO_URI || 'mongodb://localhost:27017/skillswap';
 
 const log = (msg) => console.log(msg);
 const flag = (f) => process.argv.includes(`--${f}`);
@@ -13,8 +11,8 @@ const flag = (f) => process.argv.includes(`--${f}`);
 async function run() {
   log('\nSkillSwap Core Data Seeder\n');
 
-  log('Connecting to MongoDB…');
-  await mongoose.connect(MONGO);
+  log('Connecting to Supabase Postgres…');
+  await prisma.$connect();
   log('Connected.\n');
 
   try {
@@ -33,7 +31,7 @@ async function run() {
     console.error('Seed failed:', err);
     process.exitCode = 1;
   } finally {
-    await mongoose.disconnect();
+    await prisma.$disconnect();
     log('Disconnected.\n');
   }
 }

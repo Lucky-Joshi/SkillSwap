@@ -1,0 +1,624 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  student
+  faculty
+  alumni
+  admin
+  super_admin
+}
+
+enum UserStatus {
+  pending
+  active
+  verified
+  suspended
+  deleted
+  banned
+}
+
+enum Qualification {
+  tenth_grade @map("10th Grade")
+  twelfth_grade @map("12th Grade")
+  diploma
+  b_tech @map("B.Tech")
+  b_e @map("B.E")
+  b_sc @map("B.Sc")
+  bca @map("BCA")
+  mca @map("MCA")
+  m_tech @map("M.Tech")
+  m_sc @map("M.Sc")
+  bba @map("BBA")
+  mba @map("MBA")
+  ba @map("BA")
+  ma @map("MA")
+  ph_d @map("Ph.D")
+  other
+}
+
+enum Year {
+  year1 @map("1")
+  year2 @map("2")
+  year3 @map("3")
+  year4 @map("4")
+  year5 @map("5")
+  graduate @map("Graduate")
+}
+
+enum Availability {
+  weekdays
+  weekends
+  evenings
+  mornings
+  anytime
+}
+
+enum LearningStyle {
+  visual
+  auditory
+  reading
+  kinesthetic
+  mixed
+}
+
+enum ProfileVisibility {
+  public
+  members
+  private
+}
+
+enum SkillCategory {
+  programming
+  frontend
+  backend
+  database
+  data_science @map("data-science")
+  ai_ml @map("ai-ml")
+  cloud_devops @map("cloud-devops")
+  design
+  soft_skills @map("soft-skills")
+  languages
+  business
+  other
+}
+
+enum SkillDifficulty {
+  beginner
+  intermediate
+  advanced
+}
+
+enum ConnectionType {
+  mentorship
+  peer
+}
+
+enum ConnectionStatus {
+  pending
+  accepted
+  rejected
+  cancelled
+}
+
+enum SessionStatus {
+  pending
+  confirmed
+  completed
+  cancelled
+}
+
+enum MeetingMode {
+  online
+  offline
+}
+
+enum MeetingType {
+  googleMeet
+  zoom
+  teams
+  custom
+}
+
+enum LocationType {
+  campus
+  classroom
+  library
+  lab
+  custom
+}
+
+enum NotificationType {
+  connection_request
+  connection_accepted
+  connection_declined
+  session_booked
+  session_confirmed
+  session_completed
+  session_cancelled
+  review_received
+  badge_earned
+  message_received
+  reminder
+  system
+  user_verified
+  user_suspended
+  user_reactivated
+  user_banned
+  user_deletion_warning
+}
+
+enum ReportTargetType {
+  user
+  message
+  session
+  skill
+}
+
+enum ReportReason {
+  fake_profile
+  inappropriate_content
+  spam
+  harassment
+  other
+}
+
+enum ReportStatus {
+  pending
+  reviewed
+  resolved
+  dismissed
+}
+
+enum AuditAction {
+  verify_user
+  unverify_user
+  suspend_user
+  unsuspend_user
+  soft_delete_user
+  permanent_delete_user
+  reactivate_user
+  ban_user
+  unban_user
+  update_user_role
+  create_badge
+  update_badge
+  delete_badge
+  create_institution
+  update_institution
+  delete_institution
+  merge_institutions
+  create_skill
+  update_skill
+  delete_skill
+  merge_skills
+  resolve_report
+  dismiss_report
+  update_settings
+}
+
+enum AuditTargetType {
+  user
+  badge
+  institution
+  skill
+  session
+  report
+  system
+}
+
+enum InstitutionType {
+  school
+  college
+  university
+}
+
+enum DeletionType {
+  soft
+  permanent
+}
+
+model User {
+  id                    String              @id @default(cuid())
+  name                  String              @db.VarChar(80)
+  email                 String              @unique
+  password              String
+  role                  UserRole            @default(student)
+  status                UserStatus          @default(pending)
+
+  college               String              @default("")
+  qualification         Qualification?
+  department            String              @default("")
+  year                  Year?
+  graduationYear        String              @default("")
+  bio                   String              @default("") @db.VarChar(500)
+  introduction          String              @default("") @db.VarChar(200)
+  teachingPhilosophy    String              @default("") @db.VarChar(500)
+  learningGoals         String              @default("") @db.VarChar(500)
+  preferredLearningStyle LearningStyle?
+  languages             String[]
+  interests             String[]
+  timezone              String              @default("")
+  location              String              @default("")
+  avatar                String              @default("")
+  coverPhoto            String              @default("")
+  github                String              @default("")
+  linkedin              String              @default("")
+  portfolio             String              @default("")
+
+  socialLinks           Json?
+  projects              Json?
+  educationHistory      Json?
+  achievements          String[]
+  certificates          String[]
+
+  availability          Availability       @default(anytime)
+  availabilitySchedule  Json?
+
+  rating                Float               @default(0)
+  reviewCount           Int                 @default(0)
+  points                Int                 @default(0)
+
+  isVerified            Boolean             @default(false)
+  verifiedById          String?
+  verifiedBy            User?               @relation("UserVerifiedBy", fields: [verifiedById], references: [id])
+  verifiedAt            DateTime?
+  verificationToken     String?
+  verificationTokenExpiry DateTime?
+
+  resetToken            String?
+  resetTokenExpiry      DateTime?
+
+  lastActiveAt          DateTime            @default(now())
+  isTest                Boolean             @default(false)
+  isDemo                Boolean             @default(false)
+
+  suspensionReason      String              @default("")
+  suspendedUntil        DateTime?
+  suspendedById         String?
+  suspendedBy           User?               @relation("UserSuspendedBy", fields: [suspendedById], references: [id])
+  suspensionNotes       String              @default("")
+
+  banReason             String              @default("")
+  bannedById            String?
+  bannedBy              User?               @relation("UserBannedBy", fields: [bannedById], references: [id])
+  bannedAt              DateTime?
+
+  deletedAt             DateTime?
+  deletedById           String?
+  deletedBy             User?               @relation("UserDeletedBy", fields: [deletedById], references: [id])
+  deletionType          DeletionType?
+
+  trustScore            Float               @default(0)
+  sessionsCompleted     Int                 @default(0)
+  hoursLearned          Float               @default(0)
+  hoursTaught           Float               @default(0)
+  learnedSkills         String[]
+  learningStreak        Int                 @default(0)
+  teachingStreak        Int                 @default(0)
+  lastSessionDate       DateTime?
+  profileViews          Int                 @default(0)
+  privacy               Json?
+  profileVisibility     ProfileVisibility @default(public)
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relations
+  userSkills            UserSkill[]
+  connectionsAsA        Connection[]        @relation("ConnectionUserA")
+  connectionsAsB        Connection[]        @relation("ConnectionUserB")
+  requestedConnections  Connection[]        @relation("ConnectionRequestedBy")
+  mentorSessions        Session[]           @relation("SessionMentor")
+  learnerSessions       Session[]           @relation("SessionLearner")
+  cancelledSessions     Session[]           @relation("SessionCancelledBy")
+  sentMessages          Message[]           @relation("MessageSender")
+  receivedMessages      Message[]           @relation("MessageReceiver")
+  reviewsAsMentor       Review[]            @relation("ReviewMentor")
+  reviewsAsLearner      Review[]            @relation("ReviewLearner")
+  notifications         Notification[]
+  userBadges            UserBadge[]
+  endorsementsGiven     Endorsement[]       @relation("EndorsementGiven")
+  endorsementsReceived  Endorsement[]       @relation("EndorsementReceived")
+  reports               Report[]            @relation("ReportReporter")
+  reviewedReports       Report[]            @relation("ReportReviewedBy")
+  auditLogs             AdminAuditLog[]
+
+  // Self relations for admin actions
+  verifiedUsers         User[]              @relation("UserVerifiedBy")
+  suspendedUsers        User[]              @relation("UserSuspendedBy")
+  bannedUsers           User[]              @relation("UserBannedBy")
+  deletedUsers          User[]              @relation("UserDeletedBy")
+
+  @@index([college])
+  @@index([role])
+  @@index([points(sort: Desc)])
+  @@index([rating(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@index([isTest])
+  @@index([status])
+  @@index([verificationToken, verificationTokenExpiry])
+  @@index([resetToken, resetTokenExpiry])
+}
+
+model Skill {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  aliases     String[]
+  category    SkillCategory @default(other)
+  difficulty  SkillDifficulty @default(beginner)
+  icon        String       @default("⭐")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  userSkills  UserSkill[]
+  connectionSkills ConnectionSkill[]
+  endorsements  Endorsement[]
+
+  @@index([name])
+}
+
+model UserSkill {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skillId   String
+  skill     Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  level     Int      @default(3)
+  canTeach  Boolean  @default(false)
+  wantToLearn Boolean @default(false)
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, skillId])
+  @@index([userId])
+  @@index([skillId])
+}
+
+model Endorsement {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("EndorsementReceived", fields: [userId], references: [id], onDelete: Cascade)
+  skillId    String
+  skill      Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  endorserId String
+  endorser   User     @relation("EndorsementGiven", fields: [endorserId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, skillId, endorserId])
+  @@index([userId])
+  @@index([skillId])
+}
+
+model Connection {
+  id                 String           @id @default(cuid())
+  userAId            String
+  userA              User             @relation("ConnectionUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userBId            String
+  userB              User             @relation("ConnectionUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  type               ConnectionType   @default(mentorship)
+  compatibilityScore Float            @default(0)
+  skills             ConnectionSkill[]
+  skillAteaches      String           @default("")
+  skillBteaches      String           @default("")
+  status             ConnectionStatus @default(pending)
+  requestedById      String
+  requestedBy        User             @relation("ConnectionRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+  active             Boolean          @default(false)
+  createdAt          DateTime         @default(now())
+  respondedAt        DateTime?
+  acceptedAt         DateTime?
+  updatedAt          DateTime         @updatedAt
+
+  sessions           Session[]
+  messages           Message[]
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+  @@index([active, status])
+}
+
+model ConnectionSkill {
+  id           String     @id @default(cuid())
+  connectionId String
+  connection   Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  skillId      String
+  skill        Skill      @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  name         String
+
+  @@index([connectionId])
+  @@index([skillId])
+}
+
+model Session {
+  id           String        @id @default(cuid())
+  mentorId     String
+  mentor       User          @relation("SessionMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  learnerId    String
+  learner      User          @relation("SessionLearner", fields: [learnerId], references: [id], onDelete: Cascade)
+  matchId      String?
+  match        Connection?   @relation(fields: [matchId], references: [id])
+  topic        String        @db.VarChar(120)
+  description  String        @default("") @db.VarChar(1000)
+  notes        String        @default("") @db.VarChar(1000)
+  date         DateTime
+  startTime    String        @default("10:00")
+  duration     Int           @default(60)
+  meetingMode  MeetingMode   @default(online)
+  meetingType  MeetingType   @default(googleMeet)
+  meetingLink  String        @default("")
+  link         String        @default("")
+  locationType LocationType  @default(campus)
+  location     String        @default("")
+  status       SessionStatus @default(pending)
+  confirmedAt  DateTime?
+  completedAt  DateTime?
+  cancelledAt  DateTime?
+  cancelledById String?
+  cancelledBy  User?         @relation("SessionCancelledBy", fields: [cancelledById], references: [id])
+  rating       Int?
+  feedback     String        @default("") @db.VarChar(2000)
+  recommendAnother Boolean  @default(false)
+  reminderSent Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  reviews      Review[]
+
+  @@index([date, status])
+  @@index([mentorId, learnerId])
+  @@index([matchId])
+}
+
+model Message {
+  id             String      @id @default(cuid())
+  senderId       String
+  sender         User        @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId     String
+  receiver       User        @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  conversationId String
+  matchId        String?
+  match          Connection? @relation(fields: [matchId], references: [id])
+  message        String      @db.VarChar(2000)
+  read           Boolean     @default(false)
+  readAt         DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([senderId, receiverId, createdAt(sort: Desc)])
+  @@index([conversationId])
+  @@index([matchId, createdAt])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  mentorId  String
+  mentor    User     @relation("ReviewMentor", fields: [mentorId], references: [id], onDelete: Cascade)
+  learnerId String
+  learner   User     @relation("ReviewLearner", fields: [learnerId], references: [id], onDelete: Cascade)
+  sessionId String?
+  session   Session? @relation(fields: [sessionId], references: [id])
+  rating    Int
+  feedback  String   @default("") @db.VarChar(1000)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([mentorId, learnerId, sessionId])
+  @@index([mentorId])
+  @@index([learnerId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType @default(system)
+  title     String
+  message   String           @default("")
+  read      Boolean          @default(false)
+  readAt    DateTime?
+  data      Json?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([userId, read, createdAt(sort: Desc)])
+  @@index([userId, type])
+  @@index([createdAt])
+}
+
+model Badge {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String      @default("")
+  icon        String      @default("🏅")
+  points      Int         @default(10)
+  criteria    String      @default("")
+  autoGrant   Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  userBadges  UserBadge[]
+}
+
+model UserBadge {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId  String
+  badge    Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  earnedAt DateTime @default(now())
+  source   String   @default("auto")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+}
+
+model Institution {
+  id        String          @id @default(cuid())
+  name      String          @unique
+  city      String          @default("")
+  country   String          @default("")
+  type      InstitutionType @default(college)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([name])
+}
+
+model Report {
+  id           String           @id @default(cuid())
+  reporterId   String
+  reporter     User             @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetType   ReportTargetType
+  targetId     String
+  reason       ReportReason
+  description  String           @default("") @db.VarChar(1000)
+  status       ReportStatus     @default(pending)
+  reviewedById String?
+  reviewedBy   User?            @relation("ReportReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  resolution   String           @default("") @db.VarChar(500)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([targetType, targetId])
+  @@index([reporterId])
+}
+
+model AdminAuditLog {
+  id            String          @id @default(cuid())
+  adminId       String
+  admin         User            @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  action        AuditAction
+  targetType    AuditTargetType
+  targetId      String?
+  targetModel   String          @default("User")
+  targetName    String          @default("")
+  reason        String          @default("")
+  notes         String          @default("")
+  ip            String          @default("")
+  previousStatus String         @default("")
+  newStatus     String          @default("")
+  metadata      Json?
+  createdAt     DateTime        @default(now())
+
+  @@index([adminId, createdAt(sort: Desc)])
+  @@index([action])
+  @@index([targetType, targetId])
+  @@index([createdAt(sort: Desc)])
+}

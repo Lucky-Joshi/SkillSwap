@@ -26,14 +26,14 @@ const errorHandler = (err, req, res, next) => {
   const isDev = config.env === 'development';
 
   if (statusCode >= 500) {
-    logger.error(`${req.method} ${req.originalUrl}`, {
+    logger.error(`${req.method} ${req.path}`, {
       statusCode,
       message: error.message,
       stack: err.stack,
       requestId: req.id,
     });
   } else {
-    logger.warn(`${req.method} ${req.originalUrl} - ${statusCode}`, {
+    logger.warn(`${req.method} ${req.path} - ${statusCode}`, {
       message: error.message,
       requestId: req.id,
     });
@@ -41,7 +41,7 @@ const errorHandler = (err, req, res, next) => {
 
   res.status(statusCode).json({
     success: false,
-    message: error.message || 'Internal Server Error',
+    message: statusCode >= 500 && !isDev ? 'Internal Server Error' : (error.message || 'Internal Server Error'),
     ...(error.errors && { errors: error.errors }),
     ...(isDev && { stack: err.stack }),
   });

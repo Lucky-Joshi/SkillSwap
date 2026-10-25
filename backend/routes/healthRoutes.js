@@ -11,8 +11,8 @@ router.get('/health', async (req, res) => {
     const health = await checkHealth();
     const statusCode = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 200 : 503;
     res.status(statusCode).json(health);
-  } catch (err) {
-    res.status(503).json({ status: 'unhealthy', error: err.message });
+  } catch {
+    res.status(503).json({ status: 'unhealthy' });
   }
 });
 

@@ -151,7 +151,7 @@ If users under the age required by applicable law use the platform, they should 
 - GitHub
 - Google Authentication (if enabled)
 - LinkedIn (future)
-- MongoDB Atlas
+- Supabase Postgres
 - Cloud hosting providers
 
 These services have their own privacy policies.`,

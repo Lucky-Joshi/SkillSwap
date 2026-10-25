@@ -23,7 +23,7 @@ router.get('/', getSessions);
 router.post(
   '/',
   [
-    body('otherUserId').isMongoId().withMessage('Valid user required'),
+    body('otherUserId').matches(/^[A-Za-z0-9_-]{8,64}$/).withMessage('Valid user required'),
     body('topic').trim().notEmpty().isLength({ max: 120 }),
     body('description').optional().isLength({ max: 1000 }),
     body('date').isISO8601().withMessage('Valid date required'),

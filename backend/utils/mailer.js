@@ -1,16 +1,23 @@
-/**
- * Dev mailer. In production, wire this to SendGrid / Postmark / SES.
- * Because the prototype has no SMTP credentials, verification links are
- * logged to the console and also stored so they can be replayed.
- */
+const config = require('../config/env');
+
 const sendMail = async ({ to, subject, html }) => {
-  // eslint-disable-next-line no-console
-  console.log('\n===== [SkillSwap Email] =====');
-  console.log(`To: ${to}`);
-  console.log(`Subject: ${subject}`);
-  console.log(html.replace(/<[^>]+>/g, '').trim());
-  console.log('==============================\n');
-  return true;
+  if (!config.resendApiKey || !config.emailFrom) {
+    if (config.env === 'production') throw new Error('Email delivery is not configured. Set RESEND_API_KEY and EMAIL_FROM.');
+    console.info(`[mail:development] ${subject} -> ${to}\n${html.replace(/<[^>]+>/g, '').trim()}`);
+    return { delivered: false, mode: 'development' };
+  }
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${config.resendApiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: config.emailFrom, to: [to], subject, html }),
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Email provider rejected the message (${response.status}): ${details.slice(0, 300)}`);
+  }
+  return response.json();
 };
 
 module.exports = { sendMail };
