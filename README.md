@@ -156,7 +156,7 @@ SkillSwap/
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+ and npm
+- Node.js 20.19+ and npm
 - Python 3.10+
 - A Supabase project with Postgres enabled
 
@@ -174,9 +174,46 @@ npm run dev                   # http://localhost:5000
 
 ### 2. Create an admin account
 
-```bash
+Run this in PowerShell from the repository root. The backend reads `backend/.env`; make sure `DATABASE_URL` points to the Supabase database you intend to manage.
+
+```powershell
 cd backend
-node scripts/create-admin.js --name "Your Name" --email you@example.com --password <strong-password>
+$AdminPassword = Read-Host "Admin password (at least 8 characters)"
+npm run create-admin -- --name "Admin Name" --email "admin@example.com" --password "$AdminPassword"
+Remove-Variable AdminPassword
+```
+
+The command creates a new admin, or promotes an existing regular account with that email. If the account is already an admin, it leaves the password unchanged.
+
+### Database migrations (PowerShell)
+
+Run these commands from the repository root. Prisma reads `DIRECT_URL` from `backend/.env` for migrations; the admin script and running API use `DATABASE_URL` (falling back to `DIRECT_URL`). Keep both values private and use the correct Supabase project. On Render, set `DATABASE_URL` to Supabase's Session Pooler URI and keep `DIRECT_URL` for migrations.
+
+Check the schema and current migration state, then apply checked-in migrations:
+
+```powershell
+cd backend
+npm run prisma:validate
+npx prisma migrate status
+npm run prisma:migrate:deploy
+npm run prisma:generate
+```
+
+When you change `prisma/schema.prisma` during development, create and apply a named migration against your development database:
+
+```powershell
+cd backend
+npx prisma migrate dev --name describe_your_change
+npm run prisma:generate
+```
+
+Commit both `prisma/schema.prisma` and the new folder under `prisma/migrations/`. For production, run `npm run prisma:migrate:deploy` with `DIRECT_URL` set to the target database before or as part of the backend release. Do not use `migrate dev` against production.
+
+If you need to provide URLs just for the current PowerShell window, set them without saving them in the repository:
+
+```powershell
+$env:DATABASE_URL = "<Supabase runtime or pooler connection URI>"
+$env:DIRECT_URL = "<Supabase direct connection URI for migrations>"
 ```
 
 ### 3. AI Service
