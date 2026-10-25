@@ -1,5 +1,5 @@
 const configuredApiBase = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
-export const API_BASE = configuredApiBase.replace(/\/api$/i, '');
+export const API_BASE = configuredApiBase.replace(/(?:\/api)+$/i, '');
 export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || window.location.origin;
 
 export const SKILL_CATEGORIES = [
