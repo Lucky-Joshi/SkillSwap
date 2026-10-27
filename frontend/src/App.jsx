@@ -35,6 +35,8 @@ const FAQ = Loadable(lazy(() => import('./pages/public/FAQ')));
 const Contact = Loadable(lazy(() => import('./pages/public/Contact')));
 const Privacy = Loadable(lazy(() => import('./pages/public/Privacy')));
 const Terms = Loadable(lazy(() => import('./pages/public/Terms')));
+const Blog = Loadable(lazy(() => import('./pages/public/Blog')));
+const BlogPost = Loadable(lazy(() => import('./pages/public/BlogPost')));
 
 const Login = Loadable(lazy(() => import('./pages/auth/Login')));
 const Register = Loadable(lazy(() => import('./pages/auth/Register')));
@@ -116,6 +118,8 @@ export default function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:slug" element={<BlogPost />} />
             </Route>
 
             <Route path="/login" element={<AuthPage title="Welcome back" subtitle="Log in to continue learning and teaching."><Login /></AuthPage>} />

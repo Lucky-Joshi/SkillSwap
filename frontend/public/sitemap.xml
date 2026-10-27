@@ -55,4 +55,34 @@
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
+  <url>
+    <loc>https://skill-swap-nine-lac.vercel.app/blog</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://skill-swap-nine-lac.vercel.app/blog/what-is-a-skill-exchange-platform</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://skill-swap-nine-lac.vercel.app/blog/peer-to-peer-learning-benefits-college-students</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://skill-swap-nine-lac.vercel.app/blog/learn-to-code-by-teaching-it</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://skill-swap-nine-lac.vercel.app/blog/find-a-mentor-in-college</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://skill-swap-nine-lac.vercel.app/blog/best-skills-to-teach-on-a-skill-exchange</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
 </urlset>

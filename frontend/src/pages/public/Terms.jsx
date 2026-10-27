@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '../../utils/routes';
+import useSeo from '../../hooks/useSeo';
 
 const sections = [
   {
@@ -128,6 +129,12 @@ Continued use of SkillSwap after updates constitutes acceptance of the revised T
 ];
 
 export default function Terms() {
+  useSeo({
+    title: 'Terms & Conditions — Using the SkillSwap Platform',
+    description:
+      'The terms and conditions for using SkillSwap: account rules, session conduct, content ownership, tax-free skill exchange policy, and account termination.',
+    path: '/terms',
+  });
   return (
     <>
       <section className="mx-auto max-w-3xl px-4 pb-20 pt-24 sm:px-6">

@@ -2,6 +2,7 @@ import HeroSection from '../../components/public/HeroSection';
 import FAQItem from '../../components/public/FAQItem';
 import CTASection from '../../components/public/CTASection';
 import { ROUTES } from '../../utils/routes';
+import useSeo from '../../hooks/useSeo';
 
 const FAQS = [
   {
@@ -42,7 +43,24 @@ const FAQS = [
   },
 ];
 
+const faqJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQS.map((f) => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+};
+
 export default function FAQ() {
+  useSeo({
+    title: 'FAQ — Peer Learning Platform Questions Answered',
+    description:
+      'Answers to common SkillSwap questions: how AI matching works, whether it is free, how sessions run, badges, certificates, trust scores, and data safety.',
+    path: '/faq',
+    jsonLd: faqJsonLd,
+  });
   return (
     <>
       <HeroSection

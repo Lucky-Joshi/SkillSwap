@@ -5,6 +5,7 @@ import SectionHeader from '../../components/public/SectionHeader';
 import FeatureCard from '../../components/public/FeatureCard';
 import CTASection from '../../components/public/CTASection';
 import { ROUTES } from '../../utils/routes';
+import useSeo from '../../hooks/useSeo';
 
 const AI_FEATURES = [
   {
@@ -123,6 +124,12 @@ function ArchitectureDiagram() {
 }
 
 export default function AI() {
+  useSeo({
+    title: 'AI Matching — How SkillSwap Finds Your Perfect Peer',
+    description:
+      'Inside SkillSwap\'s AI: SBERT skill embeddings, a 6-signal compatibility score, AI-generated learning roadmaps, and next-topic suggestions after every session.',
+    path: '/ai',
+  });
   return (
     <>
       <HeroSection

@@ -10,6 +10,7 @@ import StepCard from '../../components/public/StepCard';
 import SectionHeader from '../../components/public/SectionHeader';
 import CTASection from '../../components/public/CTASection';
 import { ROUTES } from '../../utils/routes';
+import useSeo from '../../hooks/useSeo';
 
 const FEATURES = [
   { icon: FiZap, title: 'AI-Powered Matching', desc: 'Semantic skill matching understands that ReactJS, React and React.js are the same — and recommends the best mentors and learners.' },
@@ -136,7 +137,21 @@ function AIHighlightSection() {
   );
 }
 
+const homeJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'EducationalOrganization',
+  name: 'SkillSwap',
+  description: 'AI-powered peer learning and skill exchange platform for college students.',
+};
+
 export default function Home() {
+  useSeo({
+    title: null,
+    description:
+      'SkillSwap is a free AI-powered skill exchange platform for college students. Teach what you know, learn what you need, and earn verified certificates with peers from your campus.',
+    path: '/',
+    jsonLd: homeJsonLd,
+  });
   return (
     <>
       <HeroSection

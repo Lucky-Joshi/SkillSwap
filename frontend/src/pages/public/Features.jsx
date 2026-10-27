@@ -7,6 +7,7 @@ import HeroSection from '../../components/public/HeroSection';
 import FeatureCard from '../../components/public/FeatureCard';
 import CTASection from '../../components/public/CTASection';
 import { ROUTES } from '../../utils/routes';
+import useSeo from '../../hooks/useSeo';
 
 const FEATURES = [
   {
@@ -60,6 +61,12 @@ const FEATURES = [
 ];
 
 export default function Features() {
+  useSeo({
+    title: 'Features — AI Matching, Sessions, Badges & Certificates',
+    description:
+      'Explore SkillSwap features: AI compatibility matching, mentorship and peer modes, session scheduling, in-app chat, points, badges and verified certificates.',
+    path: '/features',
+  });
   return (
     <>
       <HeroSection

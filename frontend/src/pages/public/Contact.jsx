@@ -7,8 +7,15 @@ import Input from '../../components/ui/Input';
 import TextArea from '../../components/ui/TextArea';
 import Button from '../../components/ui/Button';
 import { ROUTES } from '../../utils/routes';
+import useSeo from '../../hooks/useSeo';
 
 export default function Contact() {
+  useSeo({
+    title: 'Contact Us — Questions, Ideas or Feedback',
+    description:
+      'Get in touch with the SkillSwap team. Send us your questions, partnership ideas or feedback and we will respond within 24 hours.',
+    path: '/contact',
+  });
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
 

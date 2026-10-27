@@ -4,6 +4,7 @@ import HeroSection from '../../components/public/HeroSection';
 import SectionHeader from '../../components/public/SectionHeader';
 import CTASection from '../../components/public/CTASection';
 import { ROUTES } from '../../utils/routes';
+import useSeo from '../../hooks/useSeo';
 
 const VALUES = [
   { icon: FiHeart, title: 'Student-first', description: 'Built by students, for students. Every feature is designed to make peer learning more accessible and effective on college campuses.' },
@@ -17,6 +18,12 @@ const TEAM = [
 ];
 
 export default function About() {
+  useSeo({
+    title: 'About Us — Built by Students, for Students',
+    description:
+      'SkillSwap is a student-built peer learning platform on a mission to make mentorship accessible to every college student - no fees, no gatekeeping.',
+    path: '/about',
+  });
   return (
     <>
       <HeroSection

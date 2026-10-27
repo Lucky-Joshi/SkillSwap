@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '../../utils/routes';
+import useSeo from '../../hooks/useSeo';
 
 const sections = [
   {
@@ -171,6 +172,12 @@ Continued use of SkillSwap after changes means you accept the updated policy.`,
 ];
 
 export default function Privacy() {
+  useSeo({
+    title: 'Privacy Policy — How SkillSwap Protects Your Data',
+    description:
+      'Read the SkillSwap privacy policy: what data we collect from college students, how we store and protect it, and the rights you have over your account data.',
+    path: '/privacy',
+  });
   return (
     <>
       <section className="mx-auto max-w-3xl px-4 pb-20 pt-24 sm:px-6">

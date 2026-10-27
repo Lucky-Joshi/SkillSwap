@@ -6,6 +6,7 @@ import HeroSection from '../../components/public/HeroSection';
 import StepCard from '../../components/public/StepCard';
 import CTASection from '../../components/public/CTASection';
 import { ROUTES } from '../../utils/routes';
+import useSeo from '../../hooks/useSeo';
 
 const STEPS = [
   { n: '01', title: 'Create Profile', desc: 'Sign up with your college email and fill in your academic details.', icon: FiUser },
@@ -19,6 +20,12 @@ const STEPS = [
 ];
 
 export default function HowItWorks() {
+  useSeo({
+    title: 'How It Works — 4 Steps from Sign-Up to Certificate',
+    description:
+      'See how SkillSwap works in 4 steps: create your profile, add skills you teach and want to learn, get AI-matched with peers, and complete sessions for points and certificates.',
+    path: '/how-it-works',
+  });
   return (
     <>
       <HeroSection
