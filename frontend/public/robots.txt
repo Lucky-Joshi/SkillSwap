@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Private app pages (require login)
+Disallow: /app
+Disallow: /app/
+
+# API (never crawlable)
+Disallow: /api/
+
+Sitemap: https://skill-swap-nine-lac.vercel.app/sitemap.xml
